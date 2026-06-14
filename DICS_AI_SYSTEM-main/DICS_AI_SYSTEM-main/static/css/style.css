@@ -1,0 +1,371 @@
+/* /static/css/style.css */
+
+:root {
+    --bg-main: #0B0F19;         /* Deep Operations Midnight Blue */
+    --bg-card: #141B2D;         /* Sleek Dark Slate for Telemetry Cards */
+    --bg-nav: #080B14;          /* Pure Command Top Bar Background */
+    --text-primary: #F3F4F6;    /* Highly Visible Off-White */
+    --text-muted: #9CA3AF;      /* Muted Gray for Secondary Framework Data */
+    
+    /* Hazard Operational Tiers */
+    --hazard-low: #10B981;      /* Emerald Green - Stable Telemetry */
+    --hazard-mod: #F59E0B;      /* Amber / Orange - Active System Watch */
+    --hazard-high: #EF4444;     /* Crimson Red - Force Outbreak Warning */
+    --accent-glow: #3B82F6;     /* Matrix UI Blue */
+    --border-color: rgba(255, 255, 255, 0.07);
+}
+
+body {
+    background-color: var(--bg-main) !important;
+    color: var(--text-primary) !important;
+    font-family: 'SF Pro Display', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: 0.01em;
+}
+
+/* Strategic Header & Navbar Override */
+.navbar-custom {
+    background-color: var(--bg-nav) !important;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+.navbar-custom .navbar-brand {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #ffffff !important;
+    text-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+.navbar-custom .nav-link {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    color: var(--text-muted) !important;
+}
+.navbar-custom .nav-link:hover, 
+.navbar-custom .nav-item.active .nav-link {
+    color: #ffffff !important;
+}
+
+/* Command Console Cards */
+.card-custom {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 1.5rem;
+}
+.card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #E0E7FF;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Card Body Text Improvements */
+.card-custom .card-body {
+    color: var(--text-primary) !important;
+}
+.card-custom .card-body p {
+    color: #D1D5DB !important;
+}
+.card-custom .card-body small {
+    color: #B3B9C4 !important;
+    font-weight: 500;
+}
+
+/* List Groups - Dark Theme */
+.list-group {
+    background-color: transparent !important;
+}
+.list-group-item {
+    background-color: rgba(20, 27, 45, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: #D1D5DB !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.list-group-item:hover {
+    background-color: rgba(59, 130, 246, 0.12) !important;
+    border-color: rgba(59, 130, 246, 0.3) !important;
+    color: #ffffff !important;
+}
+.list-group-flush .list-group-item {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+}
+.list-group-flush .list-group-item:first-child {
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Scrollable Forecast Feed */
+#forecastFeed {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+#forecastFeed::-webkit-scrollbar {
+    width: 6px;
+}
+#forecastFeed::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+#forecastFeed::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.5);
+    border-radius: 10px;
+}
+#forecastFeed::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.8);
+}
+
+/* Tables in Dark Theme */
+.table {
+    color: var(--text-primary) !important;
+}
+.table thead th {
+    background-color: rgba(10, 13, 26, 0.8) !important;
+    color: #E0E7FF !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    font-weight: 700;
+}
+.table tbody td {
+    background-color: transparent !important;
+    color: #D1D5DB !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.table tbody th {
+    background-color: transparent !important;
+    color: #E0E7FF !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-weight: 700;
+}
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(59, 130, 246, 0.05) !important;
+}
+.table-striped tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.12) !important;
+}
+.table-borderless {
+    color: var(--text-primary) !important;
+}
+.table-borderless tbody th {
+    background-color: transparent !important;
+    color: #E0E7FF !important;
+    font-weight: 700;
+    padding: 0.85rem 1rem;
+}
+.table-borderless tbody td {
+    background-color: transparent !important;
+    color: #D1D5DB !important;
+    padding: 0.85rem 1rem;
+}
+.table-borderless tbody tr:nth-of-type(odd) {
+    background-color: rgba(59, 130, 246, 0.05) !important;
+}
+.table-borderless tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.12) !important;
+}
+.form-label {
+    color: #D1D5DB !important;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.form-label::after {
+    color: var(--hazard-high);
+}
+
+/* Badge Text Brightness */
+.badge-light {
+    color: var(--bg-main) !important;
+    font-weight: 700;
+}
+
+/* Uppercase/Label Text */
+.text-uppercase {
+    color: #E0E7FF !important;
+    font-weight: 700;
+}
+.text-uppercase.text-muted {
+    color: #B3B9C4 !important;
+    font-weight: 600;
+}
+
+/* Improved Text Visibility Across Cards */
+.card h5, .card h6 {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+}
+.card .text-muted {
+    color: #B3B9C4 !important;
+}
+h2, h3, h4 {
+    color: var(--text-primary) !important;
+}
+
+/* Page Descriptions */
+.text-muted {
+    color: #B3B9C4 !important;
+}
+p.text-muted {
+    color: #B3B9C4 !important;
+    font-weight: 500;
+}
+.form-control, .form-select {
+    background-color: #0A0D1A !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--accent-glow) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+.form-control::placeholder {
+    color: #4B5563;
+}
+
+/* Systems Data Tables */
+.table-custom {
+    color: var(--text-primary) !important;
+}
+.table-custom thead th {
+    background-color: #0A0D1A !important;
+    color: #E0E7FF !important;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    border-bottom: 2px solid var(--border-color) !important;
+    padding: 0.75rem 1rem;
+}
+.table-custom tbody td {
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 0.85rem 1rem;
+    background-color: transparent !important;
+    color: #D1D5DB !important;
+    font-weight: 500;
+}
+.table-custom tbody tr:hover {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+/* Action Interface Buttons */
+.btn-brand {
+    background: linear-gradient(135deg, #1E40AF, #1D4ED8) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+    transition: all 0.2s ease;
+}
+.btn-brand:hover {
+    background: linear-gradient(135deg, #2563EB, #1E40AF) !important;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.5);
+}
+
+/* Hazard Operational Level Badges */
+.badge-low { background: rgba(16, 185, 129, 0.12); color: var(--hazard-low); border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 700; }
+.badge-mod { background: rgba(245, 158, 11, 0.12); color: var(--hazard-mod); border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 700; }
+.badge-high { background: rgba(239, 68, 68, 0.12); color: var(--hazard-high); border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 700; animation: hazard-pulse 2s infinite; }
+
+@keyframes hazard-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Custom Alert Styles - Match Dark Theme */
+.alert {
+    background-color: rgba(30, 30, 30, 0.8) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px;
+    color: var(--text-primary) !important;
+}
+.alert-danger {
+    border-left: 4px solid var(--hazard-high) !important;
+    background-color: rgba(239, 68, 68, 0.08) !important;
+    color: #FCA5A5 !important;
+}
+.alert-success {
+    border-left: 4px solid var(--hazard-low) !important;
+    background-color: rgba(16, 185, 129, 0.08) !important;
+    color: #86EFAC !important;
+}
+.alert-info {
+    border-left: 4px solid var(--accent-glow) !important;
+    background-color: rgba(59, 130, 246, 0.08) !important;
+    color: #93C5FD !important;
+}
+
+/* Telemetry Map & Layout Enhancements */
+#map {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+}
+.leaflet-container {
+    background: #090D16 !important;
+}
+
+/* Sidebar Card Styling - Dark Theme */
+.sidebar-card {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    color: var(--text-primary) !important;
+}
+.sidebar-card .card-body {
+    padding: 1.5rem;
+}
+.sidebar-card h5 {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+}
+.sidebar-card .text-muted {
+    color: #B3B9C4 !important;
+    font-weight: 500;
+}
+.sidebar-card .small.text-muted {
+    color: #9EACBD !important;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+/* Sidebar Menu Styling */
+.sidebar-menu .list-group-item {
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-primary) !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-bottom: 0.25rem;
+    border-radius: 6px;
+}
+.sidebar-menu .list-group-item:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    border-color: var(--accent-glow) !important;
+    color: #ffffff !important;
+    transform: translateX(4px);
+}
+.sidebar-menu .list-group-item.active {
+    background-color: var(--accent-glow) !important;
+    border-color: var(--accent-glow) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+.sidebar-menu .list-group-item i {
+    opacity: 0.9;
+}

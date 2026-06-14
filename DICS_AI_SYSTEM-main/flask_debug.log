@@ -1,0 +1,72 @@
+[2026-06-13 17:40:18,915] INFO: REQUEST: GET /logout
+[2026-06-13 17:40:18,917] INFO: REQUEST: GET /logout
+[2026-06-13 17:40:18,918] INFO: Starting database initialization...
+[2026-06-13 17:40:18,918] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,920] INFO: REQUEST: GET /dashboard
+[2026-06-13 17:40:18,920] INFO: Creating all tables...
+[2026-06-13 17:40:18,921] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,925] INFO: After lazy_init for /logout
+[2026-06-13 17:40:18,929] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,929] INFO: After lazy_init for /dashboard
+[2026-06-13 17:40:18,932] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,942] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,944] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,946] INFO: After lazy_init for /
+[2026-06-13 17:40:18,943] INFO: After lazy_init for /
+[2026-06-13 17:40:18,948] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:18] "[32mGET / HTTP/1.1[0m" 302 -
+[2026-06-13 17:40:18,951] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:18] "[32mGET /logout HTTP/1.1[0m" 302 -
+[2026-06-13 17:40:18,949] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,958] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,960] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,962] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,965] INFO: After lazy_init for /
+[2026-06-13 17:40:18,966] INFO: After lazy_init for /
+[2026-06-13 17:40:18,968] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,997] INFO: Already initialized, skipping
+[2026-06-13 17:40:18,995] INFO: REQUEST: GET /
+[2026-06-13 17:40:18,998] INFO: After lazy_init for /
+[2026-06-13 17:40:18,999] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,020] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,023] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,027] INFO: Migrating user table...
+[2026-06-13 17:40:19,027] INFO: After lazy_init for /
+[2026-06-13 17:40:19,033] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,035] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,035] INFO: After lazy_init for /
+[2026-06-13 17:40:19,047] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,048] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,059] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,081] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,081] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,103] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,120] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,121] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,152] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,152] INFO: After lazy_init for /
+[2026-06-13 17:40:19,136] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,154] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,168] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,186] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,186] INFO: After lazy_init for /
+[2026-06-13 17:40:19,217] INFO: Creating default admin...
+[2026-06-13 17:40:19,221] INFO: REQUEST: GET /
+[2026-06-13 17:40:19,220] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,219] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET /dashboard HTTP/1.1" 200 -
+[2026-06-13 17:40:19,222] INFO: After lazy_init for /
+[2026-06-13 17:40:19,224] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,229] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,230] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,234] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,238] INFO: Already initialized, skipping
+[2026-06-13 17:40:19,238] INFO: After lazy_init for /
+[2026-06-13 17:40:19,241] INFO: Database initialized successfully
+[2026-06-13 17:40:19,242] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,243] INFO: After lazy_init for /
+[2026-06-13 17:40:19,245] INFO: After lazy_init for /
+[2026-06-13 17:40:19,247] INFO: After lazy_init for /
+[2026-06-13 17:40:19,250] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,251] INFO: After lazy_init for /logout
+[2026-06-13 17:40:19,254] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,256] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,258] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "GET / HTTP/1.1" 200 -
+[2026-06-13 17:40:19,262] INFO: 127.0.0.1 - - [13/Jun/2026 17:40:19] "[32mGET /logout HTTP/1.1[0m" 302 -

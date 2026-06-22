@@ -3,16 +3,24 @@ import sqlite3
 import secrets
 import shutil
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, Incident
+from models import db, User, Incident, IncidentResponse, Task, Resource, SituationReport
 from ai.prediction import predict_hazard
 from services.realtime_data import get_weather_data, get_earthquake_data
 
-# Helper function for authorization
+# Helper functions for authorization
 def is_admin_or_coordinator():
     """Check if current user is admin or agency_coordinator"""
     return 'username' in session and session.get('role') in ['admin', 'agency_coordinator']
+
+def is_incident_commander():
+    """Check if current user is incident_commander"""
+    return 'username' in session and session.get('role') == 'incident_commander'
+
+def is_admin_coordinator_or_commander():
+    """Check if current user is admin, agency_coordinator, or incident_commander"""
+    return 'username' in session and session.get('role') in ['admin', 'agency_coordinator', 'incident_commander']
 
 app = Flask(__name__)
 base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -54,6 +62,88 @@ def migrate_user_table():
             columns = [row[1] for row in cursor.fetchall()]
             if 'location' not in columns:
                 cursor.execute("ALTER TABLE incident ADD COLUMN location VARCHAR(255)")
+            conn.commit()
+
+
+def migrate_incident_commander_tables():
+    """Create incident commander related tables if they don't exist"""
+    db_path = os.path.join(instance_dir, 'database.db')
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        
+        # Create incident_response table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS incident_response (
+                id INTEGER PRIMARY KEY,
+                incident_id INTEGER NOT NULL UNIQUE,
+                commander_id INTEGER NOT NULL,
+                status VARCHAR(20) DEFAULT 'ACTIVE',
+                situation_summary TEXT,
+                priority_level VARCHAR(20) DEFAULT 'MEDIUM',
+                affected_population INTEGER,
+                started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at DATETIME,
+                closed_at DATETIME,
+                FOREIGN KEY (incident_id) REFERENCES incident(id),
+                FOREIGN KEY (commander_id) REFERENCES user(id)
+            )
+        """)
+        
+        # Create task table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS task (
+                id INTEGER PRIMARY KEY,
+                incident_response_id INTEGER NOT NULL,
+                assigned_to_agency VARCHAR(150) NOT NULL,
+                assigned_by_id INTEGER NOT NULL,
+                title VARCHAR(200) NOT NULL,
+                description TEXT NOT NULL,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                priority VARCHAR(20) DEFAULT 'MEDIUM',
+                estimated_completion DATETIME,
+                completed_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (incident_response_id) REFERENCES incident_response(id),
+                FOREIGN KEY (assigned_by_id) REFERENCES user(id)
+            )
+        """)
+        
+        # Create resource table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS resource (
+                id INTEGER PRIMARY KEY,
+                incident_response_id INTEGER NOT NULL,
+                resource_type VARCHAR(100) NOT NULL,
+                agency VARCHAR(150) NOT NULL,
+                quantity INTEGER NOT NULL,
+                status VARCHAR(20) DEFAULT 'AVAILABLE',
+                location VARCHAR(255),
+                notes TEXT,
+                allocated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                deployed_at DATETIME,
+                FOREIGN KEY (incident_response_id) REFERENCES incident_response(id)
+            )
+        """)
+        
+        # Create situation_report table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS situation_report (
+                id INTEGER PRIMARY KEY,
+                incident_response_id INTEGER NOT NULL,
+                reporter_id INTEGER NOT NULL,
+                title VARCHAR(200) NOT NULL,
+                content TEXT NOT NULL,
+                report_type VARCHAR(50) DEFAULT 'UPDATE',
+                affected_areas VARCHAR(500),
+                casualties INTEGER,
+                evacuated INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (incident_response_id) REFERENCES incident_response(id),
+                FOREIGN KEY (reporter_id) REFERENCES user(id)
+            )
+        """)
+        
+        conn.commit()
 
 
 def create_default_admin():
@@ -74,6 +164,7 @@ def create_tables():
     with app.app_context():
         db.create_all()
         migrate_user_table()
+        migrate_incident_commander_tables()
         create_default_admin()
 
 # Flag to track if initialization has been attempted
@@ -140,12 +231,14 @@ def login():
             session['username'] = user.username
             session['role'] = user.role
             flash('Welcome back, ' + user.username + '!', 'success')
-            if user.role in ['admin', 'agency_coordinator']:
+            if user.role == 'incident_commander':
+                return redirect(url_for('incident_commander_dashboard'))
+            elif user.role in ['admin', 'agency_coordinator']:
                 return redirect(url_for('admin'))
             return redirect(url_for('dashboard'))
         else:
             error = 'Invalid username or password.'
-    return render_template('login.html', error=error)
+    return render_template('pages/login.html', error=error)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -178,7 +271,7 @@ def register():
             db.session.commit()
             flash(f'Registration successful! You can now log in.', 'success')
             return redirect(url_for('login'))
-    return render_template('register.html', error=error)
+    return render_template('pages/register.html', error=error)
 
 @app.route('/logout')
 def logout():
@@ -201,6 +294,13 @@ def dashboard():
     user = User.query.filter_by(username=session['username']).first()
     if not user:
         return redirect(url_for('logout'))
+    
+    # Redirect based on user role
+    if user.role == 'incident_commander':
+        return redirect(url_for('incident_commander_dashboard'))
+    elif user.role in ['admin', 'agency_coordinator']:
+        return redirect(url_for('admin'))
+        
     incidents = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).limit(5).all()
     total_incidents = Incident.query.filter_by(user_id=user.id).count()
     alert_count = Incident.query.filter_by(user_id=user.id, alert=True).count()
@@ -216,7 +316,7 @@ def dashboard():
         latest_earthquake_magnitude = earthquake_data[0].get('magnitude', 0)
 
     return render_template(
-        'dashboard.html',
+        'pages/dashboard.html',
         username=user.username,
         user_role=user.role,
         incidents=incidents,
@@ -298,25 +398,25 @@ def live_prediction():
 def analytics():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('analytics.html')
+    return render_template('pages/analytics.html')
 
 @app.route('/hazard-map')
 def hazard_map():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('hazard_map.html', sidebar_variant='hazard')
+    return render_template('pages/hazard_map.html', sidebar_variant='hazard')
 
 @app.route('/ics')
 def ics_page():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('ics.html')
+    return render_template('pages/ics.html')
 
 @app.route('/protocols')
 def protocols():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('protocols.html')
+    return render_template('pages/protocols.html')
 
 @app.route('/citizen-report', methods=['GET', 'POST'])
 def citizen_report():
@@ -361,7 +461,7 @@ def citizen_report():
     total_incidents = len(incidents)
     pending_count = sum(1 for i in incidents if not i.alert)
     
-    return render_template('citizen_report.html', 
+    return render_template('pages/citizen_report.html', 
                          total_incidents=total_incidents, 
                          pending_count=pending_count)
 
@@ -377,7 +477,7 @@ def citizen_alerts():
     alerts = Incident.query.filter_by(user_id=user.id, alert=True).order_by(Incident.created_at.desc()).all()
     alert_count = len(alerts)
     
-    return render_template('citizen_alerts.html', 
+    return render_template('pages/citizen_alerts.html', 
                          alerts=alerts, 
                          alert_count=alert_count)
 
@@ -394,7 +494,7 @@ def citizen_status():
     total_incidents = len(incidents)
     pending_count = sum(1 for i in incidents if not i.alert)
     
-    return render_template('citizen_status.html', 
+    return render_template('pages/citizen_status.html', 
                          incidents=incidents, 
                          total_incidents=total_incidents, 
                          pending_count=pending_count)
@@ -403,7 +503,7 @@ def citizen_status():
 def citizen_resources():
     if 'username' not in session:
         return redirect(url_for('login'))
-    return render_template('citizen_resources.html')
+    return render_template('pages/citizen_resources.html')
 
 @app.route('/incidents')
 def incident_history():
@@ -415,7 +515,7 @@ def incident_history():
         return redirect(url_for('logout'))
 
     incidents = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).all()
-    return render_template('incidents.html', incidents=incidents)
+    return render_template('pages/incidents.html', incidents=incidents)
 
 @app.route('/alerts')
 def alerts():
@@ -427,7 +527,7 @@ def alerts():
         return redirect(url_for('logout'))
 
     alerts = Incident.query.filter_by(user_id=user.id, alert=True).order_by(Incident.created_at.desc()).all()
-    return render_template('alerts.html', alerts=alerts)
+    return render_template('pages/alerts.html', alerts=alerts)
 
 @app.route('/admin/alerts')
 def admin_alerts():
@@ -436,7 +536,7 @@ def admin_alerts():
         return redirect(url_for('dashboard'))
 
     incidents = Incident.query.order_by(Incident.created_at.desc()).all()
-    return render_template('admin_alerts.html', incidents=incidents)
+    return render_template('pages/admin_alerts.html', incidents=incidents)
 
 @app.route('/admin/alerts/<int:incident_id>/toggle', methods=['POST'])
 def toggle_alert(incident_id):
@@ -500,7 +600,7 @@ def ai_prediction():
     if earthquake_data and len(earthquake_data) > 0:
         latest_earthquake_magnitude = earthquake_data[0].get('magnitude', 0)
 
-    return render_template('ai_prediction.html', 
+    return render_template('pages/ai_prediction.html', 
                          prediction=prediction,
                          total_active_alerts=total_active_alerts,
                          total_incidents=total_incidents,
@@ -516,7 +616,7 @@ def manage_users():
     
     users = User.query.order_by(User.created_at.desc()).all()
     roles = ['user', 'agency_coordinator', 'admin']
-    return render_template('user_management.html', users=users, roles=roles)
+    return render_template('pages/user_management.html', users=users, roles=roles)
 
 @app.route('/admin/users/add', methods=['POST'])
 def add_user():
@@ -648,6 +748,479 @@ def export_backup():
     except Exception as e:
         flash(f'Backup failed: {str(e)}', 'error')
         return redirect(url_for('manage_users'))
+
+
+# ============= INCIDENT COMMANDER ROUTES =============
+
+@app.route('/incident-commander-dashboard')
+def incident_commander_dashboard():
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    commander = User.query.filter_by(username=session['username']).first()
+    
+    # Get all active incident responses assigned to this commander
+    active_responses = db.session.query(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
+    ).all()
+    
+    # Get all critical incidents
+    critical_incidents = db.session.query(Incident).filter(
+        Incident.level.in_(['CRITICAL', 'HIGH'])
+    ).order_by(Incident.created_at.desc()).all()
+    
+    # Get statistics
+    total_active = len(active_responses)
+    total_critical = len(critical_incidents)
+    total_tasks = db.session.query(Task).join(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        Task.status != 'COMPLETED'
+    ).count()
+    total_resources = db.session.query(Resource).join(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        Resource.status == 'DEPLOYED'
+    ).count()
+    
+    return render_template('pages/incident_commander_dashboard.html',
+                         active_responses=active_responses,
+                         critical_incidents=critical_incidents,
+                         total_active=total_active,
+                         total_critical=total_critical,
+                         total_tasks=total_tasks,
+                         total_resources=total_resources)
+
+
+@app.route('/incident/<int:incident_id>/activate-response', methods=['POST'])
+def activate_incident_response(incident_id):
+    if not is_incident_commander():
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    incident = Incident.query.get_or_404(incident_id)
+    commander = User.query.filter_by(username=session['username']).first()
+    
+    # Check if response already exists
+    existing = IncidentResponse.query.filter_by(incident_id=incident_id).first()
+    if existing:
+        return jsonify({'error': 'Incident response already active'}), 400
+    
+    response = IncidentResponse(
+        incident_id=incident_id,
+        commander_id=commander.id,
+        status='ACTIVE',
+        situation_summary=f"Incident Response initiated for {incident.hazard_type} at {incident.location}",
+        priority_level='CRITICAL' if incident.level == 'CRITICAL' else 'HIGH' if incident.level == 'HIGH' else 'MEDIUM'
+    )
+    
+    db.session.add(response)
+    db.session.commit()
+    
+    flash(f'Incident response activated for incident {incident_id}', 'success')
+    return redirect(url_for('incident_commander_dashboard'))
+
+
+def compile_incident_timeline(response):
+    """Compiles a chronological list of events for the incident response"""
+    events = []
+    
+    # 1. Incident response started
+    events.append({
+        'timestamp': response.started_at,
+        'title': 'Response Initiated',
+        'type': 'system',
+        'icon': 'bi-play-fill',
+        'badge_class': 'bg-success',
+        'details': f"Commander initiated emergency operations."
+    })
+    
+    # 2. Tasks assigned and completed
+    for task in response.tasks:
+        events.append({
+            'timestamp': task.created_at,
+            'title': f"Task Assigned: {task.title}",
+            'type': 'task_assign',
+            'icon': 'bi-list-task',
+            'badge_class': 'bg-primary',
+            'details': f"Assigned to {task.assigned_to_agency} (Priority: {task.priority})."
+        })
+        if task.completed_at:
+            events.append({
+                'timestamp': task.completed_at,
+                'title': f"Task Completed: {task.title}",
+                'type': 'task_complete',
+                'icon': 'bi-check-circle-fill',
+                'badge_class': 'bg-success',
+                'details': f"Completed by {task.assigned_to_agency}."
+            })
+            
+    # 3. Resources allocated and deployed
+    for resource in response.resources:
+        events.append({
+            'timestamp': resource.allocated_at,
+            'title': f"Resource Allocated: {resource.quantity}x {resource.resource_type}",
+            'type': 'resource_allocate',
+            'icon': 'bi-boxes',
+            'badge_class': 'bg-info',
+            'details': f"Allocated from {resource.agency}."
+        })
+        if resource.deployed_at:
+            events.append({
+                'timestamp': resource.deployed_at,
+                'title': f"Resource Deployed: {resource.resource_type}",
+                'type': 'resource_deploy',
+                'icon': 'bi-truck',
+                'badge_class': 'bg-success',
+                'details': f"Deployed to {resource.location or 'assigned sectors'}."
+            })
+            
+    # 4. Situation reports
+    for report in response.reports:
+        if report.report_type == 'CLOSURE':
+            continue
+        events.append({
+            'timestamp': report.created_at,
+            'title': f"Situation Report: {report.title}",
+            'type': 'report',
+            'icon': 'bi-file-text',
+            'badge_class': 'bg-warning text-dark' if report.report_type == 'UPDATE' else 'bg-danger' if report.report_type == 'ALERT' else 'bg-success',
+            'details': f"{report.content} (Reporter: {report.reporter.username})"
+        })
+        
+    # 5. Incident closed
+    if response.closed_at:
+        events.append({
+            'timestamp': response.closed_at,
+            'title': 'Response Closed',
+            'type': 'closure',
+            'icon': 'bi-archive-fill',
+            'badge_class': 'bg-secondary',
+            'details': f"Response closed and operations archived."
+        })
+        
+    events.sort(key=lambda x: x['timestamp'])
+    return events
+
+
+@app.route('/incident-response/<int:response_id>')
+def incident_response_detail(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    incident = response.incident
+    
+    tasks = Task.query.filter_by(incident_response_id=response_id).all()
+    resources = Resource.query.filter_by(incident_response_id=response_id).all()
+    reports = SituationReport.query.filter_by(incident_response_id=response_id).order_by(SituationReport.created_at.desc()).all()
+    
+    # Calculate statistics
+    total_tasks = len(tasks)
+    completed_tasks = sum(1 for t in tasks if t.status == 'COMPLETED')
+    task_completion_pct = int(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    deployed_resources = sum(1 for r in resources if r.status == 'DEPLOYED')
+    
+    total_casualties = db.session.query(db.func.sum(SituationReport.casualties)).filter(SituationReport.incident_response_id == response_id).scalar() or 0
+    total_evacuated = db.session.query(db.func.sum(SituationReport.evacuated)).filter(SituationReport.incident_response_id == response_id).scalar() or 0
+    
+    return render_template('pages/incident_response_detail.html',
+                         response=response,
+                         incident=incident,
+                         tasks=tasks,
+                         resources=resources,
+                         reports=reports,
+                         active_tab='dashboard',
+                         total_tasks=total_tasks,
+                         completed_tasks=completed_tasks,
+                         task_completion_pct=task_completion_pct,
+                         deployed_resources=deployed_resources,
+                         total_casualties=total_casualties,
+                         total_evacuated=total_evacuated)
+
+
+@app.route('/incident-response/<int:response_id>/tasks')
+def incident_response_tasks(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    tasks = Task.query.filter_by(incident_response_id=response_id).all()
+    
+    return render_template('pages/incident_response_tasks.html',
+                         response=response,
+                         tasks=tasks,
+                         active_tab='tasks')
+
+
+@app.route('/incident-response/<int:response_id>/resources')
+def incident_response_resources(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    resources = Resource.query.filter_by(incident_response_id=response_id).all()
+    
+    return render_template('pages/incident_response_resources.html',
+                         response=response,
+                         resources=resources,
+                         active_tab='resources')
+
+
+@app.route('/incident-response/<int:response_id>/reports')
+def incident_response_reports(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    reports = SituationReport.query.filter_by(incident_response_id=response_id).order_by(SituationReport.created_at.desc()).all()
+    
+    return render_template('pages/incident_response_reports.html',
+                         response=response,
+                         reports=reports,
+                         active_tab='reports')
+
+
+@app.route('/incident-response/<int:response_id>/timeline')
+def incident_response_timeline(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    events = compile_incident_timeline(response)
+    
+    return render_template('pages/incident_response_timeline.html',
+                         response=response,
+                         events=events,
+                         active_tab='timeline')
+
+
+@app.route('/incident-response/<int:response_id>/close', methods=['GET', 'POST'])
+def incident_response_close_page(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    commander = User.query.filter_by(username=session['username']).first()
+    
+    if request.method == 'POST':
+        # Perform closure
+        summary = request.form.get('notes', '').strip()
+        casualties = int(request.form.get('casualties') or 0)
+        evacuated = int(request.form.get('evacuated') or 0)
+        
+        # Save as a closure SituationReport
+        closure_report = SituationReport(
+            incident_response_id=response_id,
+            reporter_id=commander.id,
+            title='Operational Closure Summary',
+            content=summary or 'Incident response operations closed by commander.',
+            report_type='CLOSURE',
+            casualties=casualties,
+            evacuated=evacuated,
+            affected_areas='All Areas Closed'
+        )
+        
+        response.status = 'CLOSED'
+        response.closed_at = datetime.utcnow()
+        response.resolved_at = datetime.utcnow()
+        response.situation_summary = f"Response Closed. Total Casualties: {casualties}, Total Evacuated: {evacuated}"
+        
+        # Mark the underlying incident as resolved (alert=False)
+        response.incident.alert = False
+        
+        db.session.add(closure_report)
+        db.session.commit()
+        
+        flash('Incident response closed successfully and incident marked resolved.', 'success')
+        return redirect(url_for('incident_commander_dashboard'))
+        
+    return render_template('pages/incident_response_close.html',
+                         response=response,
+                         active_tab='close')
+
+
+@app.route('/incident-response/<int:response_id>/assign-task', methods=['GET', 'POST'])
+def assign_task(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    commander = User.query.filter_by(username=session['username']).first()
+    
+    if request.method == 'POST':
+        agency = request.form.get('agency')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        priority = request.form.get('priority', 'MEDIUM')
+        estimated_completion = request.form.get('estimated_completion')
+        
+        task = Task(
+            incident_response_id=response_id,
+            assigned_to_agency=agency,
+            assigned_by_id=commander.id,
+            title=title,
+            description=description,
+            priority=priority,
+            status='PENDING',
+            estimated_completion=datetime.fromisoformat(estimated_completion) if estimated_completion else None
+        )
+        
+        db.session.add(task)
+        db.session.commit()
+        
+        flash(f'Task "{title}" assigned to {agency}', 'success')
+        
+    return redirect(url_for('incident_response_tasks', response_id=response_id))
+
+
+@app.route('/incident-response/<int:response_id>/allocate-resource', methods=['GET', 'POST'])
+def allocate_resource(response_id):
+    if not is_incident_commander():
+        flash('Incident Commander access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    
+    if request.method == 'POST':
+        resource_type = request.form.get('resource_type')
+        agency = request.form.get('agency')
+        quantity = int(request.form.get('quantity', 1))
+        location = request.form.get('location')
+        notes = request.form.get('notes')
+        
+        resource = Resource(
+            incident_response_id=response_id,
+            resource_type=resource_type,
+            agency=agency,
+            quantity=quantity,
+            location=location,
+            notes=notes,
+            status='AVAILABLE'
+        )
+        
+        db.session.add(resource)
+        db.session.commit()
+        
+        flash(f'Resource allocated: {quantity} x {resource_type} from {agency}', 'success')
+        
+    return redirect(url_for('incident_response_resources', response_id=response_id))
+
+
+@app.route('/incident-response/<int:response_id>/create-report', methods=['GET', 'POST'])
+def create_situation_report(response_id):
+    if not is_incident_commander() and session.get('role') != 'agency_coordinator':
+        flash('Access required.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    response = IncidentResponse.query.get_or_404(response_id)
+    reporter = User.query.filter_by(username=session['username']).first()
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        report_type = request.form.get('report_type', 'UPDATE')
+        affected_areas = request.form.get('affected_areas')
+        casualties = request.form.get('casualties', type=int) or 0
+        evacuated = request.form.get('evacuated', type=int) or 0
+        
+        report = SituationReport(
+            incident_response_id=response_id,
+            reporter_id=reporter.id,
+            title=title,
+            content=content,
+            report_type=report_type,
+            affected_areas=affected_areas,
+            casualties=casualties,
+            evacuated=evacuated
+        )
+        
+        db.session.add(report)
+        response.situation_summary = f"Latest Report: {title}"
+        db.session.commit()
+        
+        flash(f'Situation report "{title}" created successfully', 'success')
+        
+    return redirect(url_for('incident_response_reports', response_id=response_id))
+
+
+@app.route('/incident-response/<int:response_id>/update-task/<int:task_id>', methods=['POST'])
+def update_task(response_id, task_id):
+    if not is_incident_commander():
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    task = Task.query.get_or_404(task_id)
+    status = request.form.get('status')
+    
+    task.status = status
+    if status == 'COMPLETED':
+        task.completed_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    flash(f'Task status updated to {status}', 'success')
+    return redirect(url_for('incident_response_tasks', response_id=response_id))
+
+
+@app.route('/incident-response/<int:response_id>/update-resource/<int:resource_id>', methods=['POST'])
+def update_resource(response_id, resource_id):
+    if not is_incident_commander():
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    resource = Resource.query.get_or_404(resource_id)
+    status = request.form.get('status')
+    location = request.form.get('location')
+    
+    resource.status = status
+    if location:
+        resource.location = location
+    if status == 'DEPLOYED':
+        resource.deployed_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    flash(f'Resource status updated to {status}', 'success')
+    return redirect(url_for('incident_response_resources', response_id=response_id))
+
+
+@app.route('/api/incident-response-stats')
+def get_incident_response_stats():
+    """Get statistics for incident command API"""
+    if not is_incident_commander():
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    commander = User.query.filter_by(username=session['username']).first()
+    
+    # Get active responses
+    active_responses = db.session.query(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
+    ).count()
+    
+    # Get pending tasks
+    pending_tasks = db.session.query(Task).join(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        Task.status.in_(['PENDING', 'IN_PROGRESS'])
+    ).count()
+    
+    # Get deployed resources
+    deployed_resources = db.session.query(Resource).join(IncidentResponse).filter(
+        IncidentResponse.commander_id == commander.id,
+        Resource.status == 'DEPLOYED'
+    ).count()
+    
+    return jsonify({
+        'active_responses': active_responses,
+        'pending_tasks': pending_tasks,
+        'deployed_resources': deployed_resources
+    })
+
 
 if __name__ == '__main__':
     create_tables()

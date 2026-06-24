@@ -458,6 +458,21 @@ p.text-muted {
     border: 1px solid rgba(239, 68, 68, 0.3) !important;
 }
 
+.card-gradient-info {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(37, 99, 235, 0.08)) !important;
+    border: 1px solid rgba(96, 165, 250, 0.3) !important;
+}
+
+.card-gradient-purple {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(109, 40, 217, 0.08)) !important;
+    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+.card-gradient-cyan {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(8, 145, 178, 0.08)) !important;
+    border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
 /* Enhanced Form Controls */
 .form-control, .form-select {
     background-color: rgba(10, 13, 26, 0.8) !important;
@@ -911,4 +926,343 @@ p.text-muted {
 .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.15) rgba(255, 255, 255, 0.02);
+}
+
+/* ============================================================
+   DICS AI — ENHANCED ANIMATIONS & TRANSITIONS
+   ============================================================ */
+
+/* ── Reduced Motion Safety ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ── Page Entry: fade + lift ─────────────────────────────── */
+@keyframes dics-page-enter {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.container > * {
+    animation: dics-page-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Stagger every direct child so they cascade in */
+.container > *:nth-child(1)  { animation-delay: 0.05s; }
+.container > *:nth-child(2)  { animation-delay: 0.10s; }
+.container > *:nth-child(3)  { animation-delay: 0.15s; }
+.container > *:nth-child(4)  { animation-delay: 0.20s; }
+.container > *:nth-child(5)  { animation-delay: 0.25s; }
+.container > *:nth-child(n+6){ animation-delay: 0.30s; }
+
+/* ── Card entrance (stagger within rows) ────────────────── */
+@keyframes dics-card-enter {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.row > [class*="col"] {
+    animation: dics-card-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.row > [class*="col"]:nth-child(1) { animation-delay: 0.08s; }
+.row > [class*="col"]:nth-child(2) { animation-delay: 0.16s; }
+.row > [class*="col"]:nth-child(3) { animation-delay: 0.24s; }
+.row > [class*="col"]:nth-child(4) { animation-delay: 0.32s; }
+.row > [class*="col"]:nth-child(n+5){ animation-delay: 0.40s; }
+
+/* ── Card hover: subtle lift + glow ─────────────────────── */
+.card-custom {
+    transition:
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.25s ease,
+        border-color 0.25s ease !important;
+    will-change: transform;
+}
+
+.card-custom:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(59, 130, 246, 0.15),
+                0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    border-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Stat cards get a bit more spring */
+.stat-card {
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        background 0.3s ease !important;
+}
+
+.stat-card:hover {
+    transform: translateY(-6px) scale(1.01);
+}
+
+/* ── Sidebar nav link transitions ───────────────────────── */
+.sidebar-nav-link {
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-left-color 0.2s ease,
+        padding-left 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.2s ease !important;
+}
+
+.sidebar-nav-link:hover {
+    padding-left: 1.35rem;
+}
+
+.sidebar-nav-link i {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+}
+
+.sidebar-nav-link:hover i {
+    transform: scale(1.2);
+    color: #3b82f6;
+}
+
+.sidebar-nav-link.active i {
+    animation: dics-icon-ping 3s ease infinite;
+}
+
+@keyframes dics-icon-ping {
+    0%, 100% { filter: drop-shadow(0 0 0px rgba(59,130,246,0)); }
+    50%       { filter: drop-shadow(0 0 5px rgba(59,130,246,0.7)); }
+}
+
+/* Sidebar collapse / expand: smooth width + icon rotation */
+.sidebar-container {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+body {
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#sidebarToggle i {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-container.collapsed #sidebarToggle i {
+    transform: rotate(180deg);
+}
+
+/* ── Button micro-interactions ───────────────────────────── */
+.btn {
+    transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+        border-color 0.2s ease !important;
+}
+
+.btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.btn:not(:disabled):active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: none;
+}
+
+/* Brand / modern buttons keep their own lift */
+.btn-brand:hover,
+.btn-primary-modern:hover,
+.btn-success-modern:hover {
+    transform: translateY(-3px) !important;
+}
+
+/* ── Ripple on click ─────────────────────────────────────── */
+.btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn .dics-ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(0);
+    animation: dics-ripple-expand 0.55s linear;
+    pointer-events: none;
+}
+
+@keyframes dics-ripple-expand {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Table row slide-in ──────────────────────────────────── */
+@keyframes dics-row-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.table tbody tr {
+    animation: dics-row-in 0.3s ease both;
+    transition: background 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+/* Progressive delay for first 10 rows */
+.table tbody tr:nth-child(1)  { animation-delay: 0.05s; }
+.table tbody tr:nth-child(2)  { animation-delay: 0.10s; }
+.table tbody tr:nth-child(3)  { animation-delay: 0.15s; }
+.table tbody tr:nth-child(4)  { animation-delay: 0.20s; }
+.table tbody tr:nth-child(5)  { animation-delay: 0.25s; }
+.table tbody tr:nth-child(6)  { animation-delay: 0.28s; }
+.table tbody tr:nth-child(7)  { animation-delay: 0.31s; }
+.table tbody tr:nth-child(8)  { animation-delay: 0.33s; }
+.table tbody tr:nth-child(n+9){ animation-delay: 0.35s; }
+
+/* ── List-group item slide ───────────────────────────────── */
+.list-group-item {
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+/* ── Badge pulse (active/live data) ─────────────────────── */
+@keyframes dics-badge-live {
+    0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+    50%       { opacity: 0.85; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
+}
+
+.badge-status-active {
+    animation: dics-badge-live 2.5s ease infinite !important;
+}
+
+/* ── Flash alert slide-down ──────────────────────────────── */
+@keyframes dics-alert-drop {
+    from { opacity: 0; transform: translateY(-12px) scaleY(0.9); }
+    to   { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+.alert {
+    animation: dics-alert-drop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: top;
+}
+
+/* ── Navbar link underline sweep ────────────────────────── */
+.navbar-custom .nav-link {
+    position: relative;
+    transition: color 0.2s ease !important;
+}
+
+.navbar-custom .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--accent-glow);
+    border-radius: 2px;
+    transition: width 0.25s ease, left 0.25s ease;
+}
+
+.navbar-custom .nav-link:hover::after,
+.navbar-custom .nav-item.active .nav-link::after {
+    width: 80%;
+    left: 10%;
+}
+
+/* ── Form focus transitions ──────────────────────────────── */
+.form-control,
+.form-select {
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.25s ease,
+        background-color 0.2s ease !important;
+}
+
+/* ── Icon badge bounce on hover ─────────────────────────── */
+.icon-badge {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.icon-badge:hover {
+    transform: scale(1.12) rotate(-4deg);
+}
+
+/* ── Hazard badge: pulsing ring sharpened ───────────────── */
+@keyframes dics-hazard-ring {
+    0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.55); }
+    60%  { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0); }
+}
+
+.badge-high {
+    animation: dics-hazard-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+/* ── SOS button: breathing glow ─────────────────────────── */
+@keyframes dics-sos-breathe {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(220, 38, 38, 0.5),
+                    0 0 0 0 rgba(220, 38, 38, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 24px rgba(220, 38, 38, 0.8),
+                    0 0 0 8px rgba(220, 38, 38, 0);
+    }
+}
+
+.sos-button {
+    animation: dics-sos-breathe 2s ease-in-out infinite !important;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease !important;
+}
+
+.sos-button:hover {
+    transform: scale(1.04) !important;
+}
+
+/* ── Skeleton shimmer for loading states ─────────────────── */
+@keyframes dics-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+
+.dics-skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.09) 50%,
+        rgba(255,255,255,0.04) 75%
+    );
+    background-size: 800px 100%;
+    animation: dics-shimmer 1.5s infinite linear;
+    border-radius: 6px;
+    min-height: 1em;
+}
+
+/* ── Section header slide-in from left ───────────────────── */
+@keyframes dics-section-enter {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.section-header {
+    animation: dics-section-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both 0.1s;
+}
+
+/* ── Tooltip fade for sidebar collapsed ─────────────────── */
+.sidebar-container.collapsed .sidebar-nav-link::before {
+    transition: opacity 0.18s ease !important;
+}
+
+/* ── Modal entrance ──────────────────────────────────────── */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.3s ease !important;
+    transform: translateY(-20px) scale(0.97) !important;
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0) scale(1) !important;
 }

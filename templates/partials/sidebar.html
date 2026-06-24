@@ -10,7 +10,8 @@
                     <small class="text-muted-custom">Crisis Response</small>
                 </div>
             </div>
-            <button class="btn btn-sm btn-toggle sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar"
+                    onclick="this.blur()">
                 <i class="bi bi-chevron-left"></i>
             </button>
         </div>
@@ -241,12 +242,35 @@
     font-size: 0.75rem;
 }
 
-.sidebar-toggle:hover {
-    color: #3b82f6;
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
+.sidebar-toggle {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.2s ease, text-shadow 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: 1;
 }
 
+.sidebar-toggle:hover {
+    color: #3b82f6;
+    text-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
+}
+
+.sidebar-toggle:focus {
+    outline: none;
+}
+
+.sidebar-container.collapsed .sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+.sidebar-toggle i {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block;
+}
 .sidebar-text-show {
     transition: opacity var(--sidebar-transition), visibility var(--sidebar-transition);
 }
@@ -433,24 +457,39 @@ body.sidebar-collapsed {
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const sidebarContainer = document.querySelector('.sidebar-container');
-    const body = document.body;
-    
-    if (sidebarToggle && sidebarContainer) {
-        sidebarToggle.addEventListener('click', function() {
-            sidebarContainer.classList.toggle('collapsed');
-            body.classList.toggle('sidebar-collapsed');
-            localStorage.setItem('sidebarCollapsed', sidebarContainer.classList.contains('collapsed'));
-        });
-        
-        // Restore sidebar state from localStorage
-        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        if (isCollapsed) {
-            sidebarContainer.classList.add('collapsed');
-            body.classList.add('sidebar-collapsed');
+/* Sidebar toggle — this is the ONLY place this logic lives.
+   app.js intentionally excludes sidebar handling to avoid double-binding. */
+(function () {
+    function initSidebar() {
+        const toggle    = document.getElementById('sidebarToggle');
+        const container = document.querySelector('.sidebar-container');
+        if (!toggle || !container) return;
+
+        function setCollapsed(collapsed) {
+            container.classList.toggle('collapsed', collapsed);
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            /* Rotate chevron icon */
+            const icon = toggle.querySelector('i');
+            if (icon) {
+                icon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+            localStorage.setItem('sidebarCollapsed', collapsed);
         }
+
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation(); /* Prevent bubbling to any global click handlers */
+            setCollapsed(!container.classList.contains('collapsed'));
+        });
+
+        /* Restore saved state on page load */
+        const saved = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (saved) setCollapsed(true);
     }
-});
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSidebar);
+    } else {
+        initSidebar(); /* Already loaded (e.g. partial injection) */
+    }
+})();
 </script>

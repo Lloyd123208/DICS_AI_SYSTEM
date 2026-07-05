@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from models import db, User, Incident
 from services.realtime_data import get_earthquake_data
@@ -45,7 +45,11 @@ def ai_prediction():
                 reported_by='ai_prediction',
             )
             db.session.add(incident)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                flash(str(e), 'error')
 
     total_active_alerts = Incident.query.filter_by(alert=True).count()
     total_incidents = Incident.query.count()

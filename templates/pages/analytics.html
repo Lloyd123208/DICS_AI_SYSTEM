@@ -158,6 +158,56 @@
     </div>
 </div>
 
+<!-- Post-Incident Evaluations -->
+<div class="card card-custom shadow-lg mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <div class="icon-badge icon-badge-warning"><i class="bi bi-journal-text"></i></div>
+            <h5 class="mb-0">Post-Incident Evaluations</h5>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+                    <div class="text-muted small">Average response rating</div>
+                    <div class="text-white fs-3 fw-bold">{{ "%.1f"|format(average_rating|default(0)) }}/5</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+                    <div class="text-muted small">Completed evaluations</div>
+                    <div class="text-white fs-3 fw-bold">{{ post_incident_reports|length }}</div>
+                </div>
+            </div>
+        </div>
+        {% if post_incident_reports %}
+            <div class="table-responsive">
+                <table class="table table-enhanced align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Incident</th>
+                            <th>Rating</th>
+                            <th>Lessons learned</th>
+                            <th>Recommendations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in post_incident_reports %}
+                            <tr>
+                                <td class="text-white">#{{ report.incident_response.incident_id }}</td>
+                                <td class="text-white">{{ report.response_rating or 'N/A' }}/5</td>
+                                <td class="text-muted">{{ report.lessons_learned or '—' }}</td>
+                                <td class="text-muted">{{ report.recommendations or '—' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-muted">No post-incident evaluations have been submitted yet.</div>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Data Summary + Live Feed -->
 <div class="row g-4">
     <div class="col-xl-7">

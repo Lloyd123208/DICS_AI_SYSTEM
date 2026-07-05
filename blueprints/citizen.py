@@ -80,7 +80,12 @@ def citizen_report():
             )
             db.session.add(citizen_report)
             db.session.add(incident)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                flash(str(e), 'error')
+                return redirect(url_for('citizen_report'))
             flash('Incident report submitted successfully. Authorities have been notified.', 'success')
             return redirect(url_for('citizen_status'))
         except Exception as e:

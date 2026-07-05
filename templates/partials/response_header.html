@@ -80,7 +80,7 @@
                 <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:1rem;margin-top:0.25rem;">
                     <ul class="nav gap-1 flex-wrap">
                         <li class="nav-item">
-                            <a href="{{ url_for('incident_response_detail', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'dashboard' %}btn-primary-modern text-white{% else %}text-muted{% endif %}"
                                style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;transition:all 0.2s;">

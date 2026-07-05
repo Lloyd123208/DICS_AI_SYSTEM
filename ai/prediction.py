@@ -3,8 +3,10 @@ import os
 from pathlib import Path
 
 from joblib import dump, load
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import cross_val_score
+from sklearn.svm import SVR
 
 TRAINING_CSV = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'data', 'hazard_training.csv')
 MODEL_FILE = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'instance', 'hazard_predictor.joblib')
@@ -55,24 +57,38 @@ class HazardPredictor:
         for hazard_type, examples in training_data.items():
             X = [features for features, score in examples]
             y = [score for features, score in examples]
-            model = LinearRegression()
+            linear_model = LinearRegression()
+            rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            svm_model = SVR(kernel='rbf', C=100.0, gamma=0.1)
+            models = {
+                'linear_regression': linear_model,
+                'random_forest': rf_model,
+                'svm': svm_model,
+            }
             cv_folds = min(5, len(y))
             if cv_folds > 1:
-                scores = cross_val_score(model, X, y, cv=cv_folds, scoring='neg_mean_squared_error')
+                scores = cross_val_score(linear_model, X, y, cv=cv_folds, scoring='neg_mean_squared_error')
                 rmse = float(((-scores).mean()) ** 0.5)
                 self.metrics[hazard_type] = {
                     'cv_folds': cv_folds,
                     'cv_rmse': round(rmse, 2),
                     'training_examples': len(y),
+                    'models': ['linear_regression', 'random_forest', 'svm'],
                 }
             else:
                 self.metrics[hazard_type] = {
                     'cv_folds': 0,
                     'cv_rmse': None,
                     'training_examples': len(y),
+                    'models': ['linear_regression', 'random_forest', 'svm'],
                 }
-            model.fit(X, y)
-            self.models[hazard_type] = model
+            for name, model in models.items():
+                model.fit(X, y)
+            self.models[hazard_type] = {
+                'linear_regression': linear_model,
+                'random_forest': rf_model,
+                'svm': svm_model,
+            }
 
     def _save_model(self):
         payload = {
@@ -96,12 +112,15 @@ class HazardPredictor:
 
     def predict(self, hazard_type, rainfall_mm, river_level_m, soil_moisture_pct, population_density):
         hazard_type = hazard_type.strip().lower() if isinstance(hazard_type, str) else self.default_hazard
-        model = self.models.get(hazard_type) or self.models.get(self.default_hazard)
-        if model is None:
+        model_group = self.models.get(hazard_type) or self.models.get(self.default_hazard)
+        if not model_group:
             raise RuntimeError('No hazard prediction model is available')
 
         X = [[rainfall_mm, river_level_m, soil_moisture_pct, population_density]]
-        score = model.predict(X)[0]
+        linear_score = model_group['linear_regression'].predict(X)[0]
+        rf_score = model_group['random_forest'].predict(X)[0]
+        svm_score = model_group['svm'].predict(X)[0]
+        score = float((linear_score + rf_score + svm_score) / 3.0)
         score = max(0.0, min(100.0, round(score, 1)))
 
         if score < 25:

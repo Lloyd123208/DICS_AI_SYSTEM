@@ -136,7 +136,7 @@
                                             <span class="badge badge-low px-2 py-1">NOMINAL</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-info font-monospace fw-bold">{{ '%.1f'|format(incident.score) }}%</td>
+                                    <td class="text-info font-monospace fw-bold">{{ '%.1f'|format(incident.score or 0) }}%</td>
                                     <td>
                                         {% if incident.alert %}
                                             <span class="text-danger fw-bold animate-pulse"><i class="bi bi-exclamation-octagon-fill me-1"></i>LIVE BROADCAST</span>

@@ -80,7 +80,7 @@
                         <div style="padding:1rem;background:rgba(239,68,68,0.07);border-radius:8px;border-left:3px solid #EF4444;">
                             <span class="text-muted d-block small mb-1" style="text-transform:uppercase;letter-spacing:0.05em;">Risk Assessment</span>
                             <div class="d-flex align-items-center gap-2">
-                                <h2 class="fw-bold mb-0" style="color:#FCA5A5;">{{ "%.2f"|format(response.incident.score) }}</h2>
+                                <h2 class="fw-bold mb-0" style="color:#FCA5A5;">{{ "%.2f"|format(response.incident.score or 0) }}</h2>
                                 <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:5px;font-size:0.75em;font-weight:700;text-transform:uppercase;">
                                     {{ response.incident.level }}
                                 </span>
@@ -203,6 +203,41 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card card-custom mt-4">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-4">
+            <div class="icon-badge icon-badge-warning"><i class="bi bi-journal-check"></i></div>
+            <h5 class="mb-0">Post-Incident Evaluation</h5>
+        </div>
+        {% if response.status in ['CLOSED', 'RESOLVED'] %}
+            <form method="post" action="{{ url_for('commander.post_incident_evaluation', response_id=response.id) }}" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Lessons learned</label>
+                    <textarea class="form-control" name="lessons_learned" rows="4" placeholder="What went well or what should improve?">{{ (post_incident_report.lessons_learned if post_incident_report else '') }}</textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Response rating (1-5)</label>
+                    <select class="form-select" name="response_rating">
+                        <option value="">Select rating</option>
+                        {% for rating in range(1, 6) %}
+                            <option value="{{ rating }}" {% if post_incident_report and post_incident_report.response_rating == rating %}selected{% endif %}>{{ rating }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Recommendations</label>
+                    <textarea class="form-control" name="recommendations" rows="3" placeholder="Recommended improvements for future responses">{{ (post_incident_report.recommendations if post_incident_report else '') }}</textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary-modern">Save evaluation</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="alert alert-info mb-0">Close or resolve this response to unlock the post-incident evaluation form.</div>
+        {% endif %}
     </div>
 </div>
 

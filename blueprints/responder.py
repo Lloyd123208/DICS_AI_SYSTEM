@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
-from models import db, User, IncidentResponse, Task, SituationReport
+from models import db, User, IncidentResponse, Task, IncidentMessage
 from blueprints.common import is_field_responder
 
 responder_bp = Blueprint('responder', __name__)
@@ -23,7 +23,7 @@ def responder_dashboard():
 
     session['agency'] = user.agency or 'FIELD UNIT'
     my_tasks = Task.query.filter_by(assigned_to_agency=user.agency or '').order_by(Task.created_at.desc()).all()
-    my_reports = SituationReport.query.filter_by(reporter_id=user.id).order_by(SituationReport.created_at.desc()).limit(8).all()
+    my_reports = IncidentMessage.query.filter_by(reporter_id=user.id).order_by(IncidentMessage.created_at.desc()).limit(8).all()
     active_responses = IncidentResponse.query.filter_by(status='ACTIVE').order_by(IncidentResponse.started_at.desc()).all()
 
     pending_count = sum(1 for task in my_tasks if task.status in ['PENDING', 'IN_PROGRESS'])
@@ -93,18 +93,24 @@ def responder_report():
         if gps_lat and gps_lng:
             content = f"{content}\nGPS: {gps_lat}, {gps_lng}"
 
-        report = SituationReport(
+        report = IncidentMessage(
             incident_response_id=incident_response_id,
             reporter_id=user.id,
             title=title,
             content=content,
             report_type=report_type,
+            source='responder',
             affected_areas=affected_areas or None,
             casualties=casualties,
             evacuated=evacuated,
         )
         db.session.add(report)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('responder.responder_report'))
 
         upload_dir = current_app.config['UPLOAD_FOLDER']
         os.makedirs(upload_dir, exist_ok=True)
@@ -120,7 +126,12 @@ def responder_report():
 
         if saved_files:
             report.content = f"{report.content}\nAttachments: {', '.join(saved_files)}"
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                flash(str(e), 'error')
+                return redirect(url_for('responder.responder_report'))
 
         flash('Field report submitted successfully.', 'success')
         return redirect(url_for('responder.responder_dashboard'))
@@ -150,7 +161,12 @@ def responder_update_task(task_id):
             task.completed_at = datetime.utcnow()
         else:
             task.completed_at = None
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('responder.responder_tasks'))
         flash('Task status updated.', 'success')
     else:
         flash('A valid task status was not provided.', 'danger')

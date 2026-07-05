@@ -80,7 +80,7 @@
                                     </td>
                                     
                                     <!-- Blue Percentage Score -->
-                                    <td class="py-3 fw-bold" style="color: #3b82f6;">{{ '%.1f'|format(incident.score) }}%</td>
+                                    <td class="py-3 fw-bold" style="color: #3b82f6;">{{ '%.1f'|format(incident.score or 0) }}%</td>
                                     
                                     <!-- Alert Status -->
                                     <td class="py-3">
@@ -95,8 +95,12 @@
                                         {{ incident.message }}
                                     </td>
                                     
-                                    <!-- Action Button -->
+                                    <!-- Action Buttons -->
                                     <td class="py-3 px-4 text-end">
+                                        <form method="post" action="{{ url_for('admin.verify_incident', incident_id=incident.id) }}" class="d-inline me-2">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-success rounded px-3">Verify</button>
+                                        </form>
                                         <form method="post" action="/admin/alerts/{{ incident.id }}/toggle" class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-outline-primary rounded px-3">Toggle</button>

@@ -8,7 +8,7 @@ def is_admin_or_coordinator():
 
 
 def is_incident_commander():
-    return 'username' in session and session.get('role') == 'incident_commander'
+    return 'username' in session and session.get('role') in ['incident_commander', 'admin']
 
 
 def is_admin_coordinator_or_commander():

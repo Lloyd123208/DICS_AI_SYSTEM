@@ -108,7 +108,7 @@
                                             <p class="mb-2 small">{{ alert.message }}</p>
                                             <div class="d-flex gap-3 align-items-center flex-wrap">
                                                 <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ alert.created_at.strftime('%b %d, %Y %I:%M %p') if alert.created_at else 'N/A' }}</small>
-                                                <small class="text-muted"><i class="bi bi-speedometer2 me-1"></i>Risk Score: <strong class="text-info">{{ "%.0f"|format(alert.score) }}%</strong></small>
+                                                <small class="text-muted"><i class="bi bi-speedometer2 me-1"></i>Risk Score: <strong class="text-info">{{ "%.0f"|format(alert.score or 0) }}%</strong></small>
                                             </div>
                                         </div>
                                     </div>

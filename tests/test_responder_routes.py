@@ -2,9 +2,17 @@ import importlib
 import os
 import unittest
 from io import BytesIO
+from unittest.mock import patch
 
+import app as app_module
 from app import app, db
-from models import User, CitizenReport, Incident
+from models import User, CitizenReport, Incident, IncidentResponse, PostIncidentReport
+import scheduler
+
+
+@app.route('/force-500')
+def force_500():
+    raise RuntimeError('intentional test failure')
 
 
 class ResponderRoutesTestCase(unittest.TestCase):
@@ -30,6 +38,44 @@ class ResponderRoutesTestCase(unittest.TestCase):
     def test_field_responder_dashboard_requires_login(self):
         response = self.client.get('/responder-dashboard')
         self.assertEqual(response.status_code, 302)
+
+    def test_create_default_admin_uses_default_credentials(self):
+        with self.app.app_context():
+            existing = User(username='admin', email='admin@dics-ai.local', password='legacy', role='user')
+            db.session.add(existing)
+            db.session.commit()
+
+            app_module.create_default_admin()
+            admin = User.query.filter_by(username='admin').first()
+            self.assertEqual(admin.role, 'admin')
+            self.assertTrue(app_module.check_password_hash(admin.password, 'Admin123!'))
+
+    def test_register_requires_minimum_password_length(self):
+        response = self.client.post('/register', data={
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'short',
+            'full_name': 'New User',
+            'contact_number': '09170000000',
+        }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Password must be at least 8 characters.', response.data)
+
+    def test_public_registration_assigns_citizen_role(self):
+        response = self.client.post('/register', data={
+            'username': 'citizenuser',
+            'email': 'citizen@example.com',
+            'password': 'strongpass123',
+            'full_name': 'Citizen User',
+            'contact_number': '09170000000',
+        }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            user = User.query.filter_by(username='citizenuser').first()
+            self.assertIsNotNone(user)
+            self.assertEqual(user.role, 'citizen')
 
     def test_field_responder_dashboard_renders_for_role(self):
         with self.client.session_transaction() as session:
@@ -119,6 +165,10 @@ class ResponderRoutesTestCase(unittest.TestCase):
             db.session.add(citizen_report)
             db.session.commit()
 
+        with self.client.session_transaction() as session:
+            session['username'] = 'responder1'
+            session['role'] = 'citizen'
+
         response = self.client.get('/api/map-pins')
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
@@ -127,6 +177,133 @@ class ResponderRoutesTestCase(unittest.TestCase):
         self.assertEqual(data[0]['hazard_type'], 'flood')
         self.assertEqual(data[0]['lat'], 14.1234)
         self.assertEqual(data[0]['lng'], 121.5678)
+
+    def test_custom_error_handlers_render_friendly_pages(self):
+        response = self.client.get('/does-not-exist')
+        self.assertEqual(response.status_code, 404)
+        self.assertIn(b'Page Not Found', response.data)
+        self.assertIn(b'The page you requested could not be found.', response.data)
+
+        response = self.client.get('/force-500')
+        self.assertEqual(response.status_code, 500)
+        self.assertIn(b'Something went wrong on our side.', response.data)
+
+    def test_monitor_hazards_creates_incident_for_high_risk_prediction(self):
+        weather_data = {
+            'city': 'Lipa',
+            'temperature': 31,
+            'humidity': 85,
+            'pressure': 1008,
+            'wind_speed': 8,
+            'rainfall': 20,
+            'weather': 'heavy rain',
+            'fetched_at': 'now',
+        }
+        prediction = {
+            'type': 'flood',
+            'score': 80.0,
+            'level': 'Severe',
+            'message': 'Severe hazard risk.',
+            'alert': True,
+        }
+
+        with patch.object(scheduler, 'get_weather_data', return_value=weather_data), \
+             patch.object(scheduler, 'predict_hazard', return_value=prediction):
+            with self.app.app_context():
+                scheduler.monitor_hazards()
+
+        with self.app.app_context():
+            incident = Incident.query.filter_by(hazard_type='flood').order_by(Incident.created_at.desc()).first()
+            self.assertIsNotNone(incident)
+            self.assertTrue(incident.alert)
+            self.assertEqual(incident.score, 80.0)
+            self.assertEqual(incident.location, 'Lipa')
+
+    def test_monitor_hazards_creates_incidents_for_multiple_hazard_types(self):
+        weather_data = {
+            'city': 'Lipa',
+            'temperature': 31,
+            'humidity': 85,
+            'pressure': 1008,
+            'wind_speed': 8,
+            'rainfall': 20,
+            'weather': 'heavy rain',
+            'fetched_at': 'now',
+        }
+
+        def fake_predict_hazard(hazard_type, **kwargs):
+            return {
+                'type': hazard_type,
+                'score': 80.0,
+                'level': 'Severe',
+                'message': f'Severe {hazard_type} risk.',
+                'alert': True,
+            }
+
+        with patch.object(scheduler, 'get_weather_data', return_value=weather_data), \
+             patch.object(scheduler, 'predict_hazard', side_effect=fake_predict_hazard):
+            with self.app.app_context():
+                scheduler.monitor_hazards()
+
+        with self.app.app_context():
+            incidents = Incident.query.filter(Incident.hazard_type.in_(['flood', 'landslide', 'earthquake'])).all()
+            self.assertEqual(len(incidents), 3)
+            self.assertEqual({incident.hazard_type for incident in incidents}, {'flood', 'landslide', 'earthquake'})
+
+    def test_post_incident_evaluation_saves_report_for_closed_response(self):
+        with self.app.app_context():
+            commander = User(
+                username='commander1',
+                email='commander@example.com',
+                password='secret',
+                role='incident_commander',
+                agency='BFP',
+                email_verified=True,
+            )
+            db.session.add(commander)
+            db.session.commit()
+
+            incident = Incident(
+                user_id=commander.id,
+                hazard_type='flood',
+                location='Lipa',
+                message='Flooding reported',
+                level='HIGH',
+                alert=True,
+                status='CLOSED',
+                reported_by='system',
+            )
+            db.session.add(incident)
+            db.session.commit()
+
+            response = IncidentResponse(
+                incident_id=incident.id,
+                commander_id=commander.id,
+                status='CLOSED',
+                situation_summary='Resolved',
+            )
+            db.session.add(response)
+            db.session.commit()
+            db.session.refresh(response)
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'commander1'
+            session['role'] = 'incident_commander'
+            session['agency'] = 'BFP'
+
+        response_result = self.client.post(f'/incident-response/{response.id}/post-incident-evaluation', data={
+            'lessons_learned': 'Improved shelter coordination',
+            'response_rating': '5',
+            'recommendations': 'Add more evacuation buses',
+        }, follow_redirects=True)
+
+        self.assertEqual(response_result.status_code, 200)
+        with self.app.app_context():
+            report = PostIncidentReport.query.filter_by(incident_response_id=response.id).first()
+            self.assertIsNotNone(report)
+            self.assertEqual(report.lessons_learned, 'Improved shelter coordination')
+            self.assertEqual(report.response_rating, 5)
+            self.assertEqual(report.recommendations, 'Add more evacuation buses')
 
     def test_coordinator_comms_page_renders_for_agency_coordinator(self):
         with self.client.session_transaction() as session:
@@ -228,12 +405,13 @@ class ResponderRoutesTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         with self.app.app_context():
-            from models import Message
-            message = Message.query.filter_by(title='Test Broadcast').first()
+            from models import IncidentMessage
+            message = IncidentMessage.query.filter_by(title='Test Broadcast').first()
             self.assertIsNotNone(message)
             self.assertEqual(message.content, 'This is a test broadcast message.')
-            self.assertEqual(message.sender_id, coordinator_id)
+            self.assertEqual(message.reporter_id, coordinator_id)
             self.assertEqual(message.incident_response_id, incident_response_id)
+            self.assertEqual(message.source, 'coordinator')
 
 
 if __name__ == '__main__':

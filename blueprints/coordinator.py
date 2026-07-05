@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, SituationReport, Message
+from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage
 from blueprints.common import is_admin_or_coordinator, get_coordinator_agency
 
 coordinator_bp = Blueprint('coordinator', __name__)
@@ -70,12 +70,18 @@ def coordinator_update_task(task_id):
 
     task = Task.query.get_or_404(task_id)
     new_status = request.form.get('status')
+    referrer = request.referrer
 
     if new_status in ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'):
         task.status = new_status
         if new_status == 'COMPLETED':
             task.completed_at = datetime.utcnow()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(referrer or url_for('coordinator.coordinator_tasks'))
         flash(f'Task "{task.title}" updated to {new_status}.', 'success')
 
     referrer = request.referrer
@@ -178,7 +184,12 @@ def coordinator_allocate_resource():
         deployed_at=datetime.utcnow() if status == 'DEPLOYED' else None
     )
     db.session.add(resource)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('coordinator.coordinator_resources'))
     flash(f'{quantity}x {resource_type} ({agency}) allocated to Response #{response.incident_id}.', 'success')
     return redirect(url_for('coordinator.coordinator_resources'))
 
@@ -191,12 +202,18 @@ def coordinator_update_resource(resource_id):
 
     resource = Resource.query.get_or_404(resource_id)
     new_status = request.form.get('status')
+    referrer = request.referrer
 
     if new_status in ('AVAILABLE', 'DEPLOYED', 'RETURNING', 'UNAVAILABLE'):
         resource.status = new_status
         if new_status == 'DEPLOYED' and not resource.deployed_at:
             resource.deployed_at = datetime.utcnow()
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(referrer or url_for('coordinator.coordinator_resources'))
         flash(f'Resource status updated to {new_status}.', 'success')
 
     referrer = request.referrer
@@ -211,9 +228,9 @@ def coordinator_reports():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
-    reports = SituationReport.query.join(IncidentResponse).filter(
+    reports = IncidentMessage.query.join(IncidentResponse).filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(SituationReport.created_at.desc()).all()
+    ).order_by(IncidentMessage.created_at.desc()).all()
 
     active_responses = IncidentResponse.query.filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
@@ -247,18 +264,24 @@ def coordinator_submit_report():
     user = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
 
-    message = Message(
+    message = IncidentMessage(
         incident_response_id=response.id,
-        sender_id=user.id,
+        reporter_id=user.id,
         title=title,
         content=content,
         report_type=report_type if report_type in ('UPDATE', 'ALERT', 'MILESTONE', 'CLOSURE') else 'UPDATE',
+        source='coordinator',
         affected_areas=affected_areas or None,
         evacuated=evacuated,
         casualties=casualties
     )
     db.session.add(message)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(referrer or url_for('coordinator.coordinator_reports'))
     flash(f'Broadcast message "{title}" submitted successfully.', 'success')
 
     referrer = request.referrer
@@ -273,9 +296,9 @@ def coordinator_comms():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
-    comm_logs = Message.query.join(IncidentResponse).filter(
+    comm_logs = IncidentMessage.query.join(IncidentResponse).filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(Message.created_at.desc()).limit(50).all()
+    ).order_by(IncidentMessage.created_at.desc()).limit(50).all()
 
     active_responses = IncidentResponse.query.filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])

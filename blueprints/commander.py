@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, SituationReport
+from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage, PostIncidentReport
 from blueprints.common import is_incident_commander
 
 commander_bp = Blueprint('commander', __name__)
@@ -66,7 +66,12 @@ def activate_incident_response(incident_id):
     )
 
     db.session.add(response)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('commander.incident_commander_dashboard'))
 
     flash(f'Incident response activated for incident {incident_id}', 'success')
     return redirect(url_for('commander.incident_commander_dashboard'))
@@ -121,7 +126,7 @@ def compile_incident_timeline(response):
                 'details': f"Deployed to {resource.location or 'assigned sectors'}."
             })
 
-    for report in response.reports:
+    for report in response.messages:
         if report.report_type == 'CLOSURE':
             continue
         events.append({
@@ -147,26 +152,64 @@ def compile_incident_timeline(response):
     return events
 
 
+@commander_bp.route('/incident-response/<int:response_id>/post-incident-evaluation', methods=['POST'])
+def post_incident_evaluation(response_id):
+    if not is_incident_commander():
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    commander = User.query.filter_by(username=session['username']).first()
+    response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
+
+    lessons_learned = (request.form.get('lessons_learned') or '').strip()
+    response_rating = request.form.get('response_rating', '').strip()
+    recommendations = (request.form.get('recommendations') or '').strip()
+
+    report = PostIncidentReport.query.filter_by(incident_response_id=response_id).first()
+    if report is None:
+        report = PostIncidentReport(incident_response_id=response_id)
+        db.session.add(report)
+
+    report.lessons_learned = lessons_learned or None
+    report.response_rating = int(response_rating) if response_rating.isdigit() else None
+    report.recommendations = recommendations or None
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Unable to save evaluation: {exc}', 'error')
+        return redirect(url_for('commander.incident_response_detail', response_id=response_id))
+
+    flash('Post-incident evaluation saved.', 'success')
+    return redirect(url_for('commander.incident_response_detail', response_id=response_id))
+
+
 @commander_bp.route('/incident-response/<int:response_id>')
 def incident_response_detail(response_id):
     if not is_incident_commander():
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     incident = response.incident
 
     tasks = Task.query.filter_by(incident_response_id=response_id).all()
     resources = Resource.query.filter_by(incident_response_id=response_id).all()
-    reports = SituationReport.query.filter_by(incident_response_id=response_id).order_by(SituationReport.created_at.desc()).all()
+    reports = IncidentMessage.query.filter_by(incident_response_id=response_id).order_by(IncidentMessage.created_at.desc()).all()
 
     total_tasks = len(tasks)
     completed_tasks = sum(1 for t in tasks if t.status == 'COMPLETED')
     task_completion_pct = int(completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
     deployed_resources = sum(1 for r in resources if r.status == 'DEPLOYED')
 
-    total_casualties = db.session.query(db.func.sum(SituationReport.casualties)).filter(SituationReport.incident_response_id == response_id).scalar() or 0
-    total_evacuated = db.session.query(db.func.sum(SituationReport.evacuated)).filter(SituationReport.incident_response_id == response_id).scalar() or 0
+    total_casualties = db.session.query(db.func.sum(IncidentMessage.casualties)).filter(IncidentMessage.incident_response_id == response_id).scalar() or 0
+    total_evacuated = db.session.query(db.func.sum(IncidentMessage.evacuated)).filter(IncidentMessage.incident_response_id == response_id).scalar() or 0
+    post_incident_report = PostIncidentReport.query.filter_by(incident_response_id=response_id).first()
 
     return render_template('pages/incident_response_detail.html',
                          response=response,
@@ -180,7 +223,8 @@ def incident_response_detail(response_id):
                          task_completion_pct=task_completion_pct,
                          deployed_resources=deployed_resources,
                          total_casualties=total_casualties,
-                         total_evacuated=total_evacuated)
+                         total_evacuated=total_evacuated,
+                         post_incident_report=post_incident_report)
 
 
 @commander_bp.route('/incident-response/<int:response_id>/tasks')
@@ -189,7 +233,10 @@ def incident_response_tasks(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     tasks = Task.query.filter_by(incident_response_id=response_id).all()
 
     return render_template('pages/incident_response_tasks.html',
@@ -204,7 +251,10 @@ def incident_response_resources(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     resources = Resource.query.filter_by(incident_response_id=response_id).all()
 
     return render_template('pages/incident_response_resources.html',
@@ -219,8 +269,11 @@ def incident_response_reports(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
-    reports = SituationReport.query.filter_by(incident_response_id=response_id).order_by(SituationReport.created_at.desc()).all()
+    if response.commander_id != commander.id:
+        abort(403)
+    reports = IncidentMessage.query.filter_by(incident_response_id=response_id).order_by(IncidentMessage.created_at.desc()).all()
 
     return render_template('pages/incident_response_reports.html',
                          response=response,
@@ -234,7 +287,10 @@ def incident_response_timeline(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     events = compile_incident_timeline(response)
 
     return render_template('pages/incident_response_timeline.html',
@@ -249,20 +305,23 @@ def incident_response_close_page(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
-    response = IncidentResponse.query.get_or_404(response_id)
     commander = User.query.filter_by(username=session['username']).first()
+    response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
 
     if request.method == 'POST':
         summary = request.form.get('notes', '').strip()
         casualties = int(request.form.get('casualties') or 0)
         evacuated = int(request.form.get('evacuated') or 0)
 
-        closure_report = SituationReport(
+        closure_report = IncidentMessage(
             incident_response_id=response_id,
             reporter_id=commander.id,
             title='Operational Closure Summary',
             content=summary or 'Incident response operations closed by commander.',
             report_type='CLOSURE',
+            source='commander',
             casualties=casualties,
             evacuated=evacuated,
             affected_areas='All Areas Closed'
@@ -275,7 +334,12 @@ def incident_response_close_page(response_id):
         response.incident.alert = False
 
         db.session.add(closure_report)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('commander.incident_commander_dashboard'))
 
         flash('Incident response closed successfully and incident marked resolved.', 'success')
         return redirect(url_for('commander.incident_commander_dashboard'))
@@ -291,8 +355,10 @@ def assign_task(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
-    response = IncidentResponse.query.get_or_404(response_id)
     commander = User.query.filter_by(username=session['username']).first()
+    response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
 
     if request.method == 'POST':
         agency = request.form.get('agency')
@@ -313,7 +379,12 @@ def assign_task(response_id):
         )
 
         db.session.add(task)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('incident_response_tasks', response_id=response_id))
 
         flash(f'Task "{title}" assigned to {agency}', 'success')
 
@@ -326,7 +397,10 @@ def allocate_resource(response_id):
         flash('Incident Commander access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
 
     if request.method == 'POST':
         resource_type = request.form.get('resource_type')
@@ -346,7 +420,12 @@ def allocate_resource(response_id):
         )
 
         db.session.add(resource)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('incident_response_resources', response_id=response_id))
 
         flash(f'Resource allocated: {quantity} x {resource_type} from {agency}', 'success')
 
@@ -359,7 +438,10 @@ def create_situation_report(response_id):
         flash('Access required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    commander = User.query.filter_by(username=session['username']).first()
     response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     reporter = User.query.filter_by(username=session['username']).first()
 
     if request.method == 'POST':
@@ -370,12 +452,13 @@ def create_situation_report(response_id):
         casualties = request.form.get('casualties', type=int) or 0
         evacuated = request.form.get('evacuated', type=int) or 0
 
-        report = SituationReport(
-            incident_response_id=response_id,
+        report = IncidentMessage(
+            incident_response_id=response.id,
             reporter_id=reporter.id,
             title=title,
             content=content,
             report_type=report_type,
+            source='commander',
             affected_areas=affected_areas,
             casualties=casualties,
             evacuated=evacuated
@@ -383,7 +466,12 @@ def create_situation_report(response_id):
 
         db.session.add(report)
         response.situation_summary = f"Latest Report: {title}"
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            return redirect(url_for('incident_response_reports', response_id=response_id))
 
         flash(f'Situation report "{title}" created successfully', 'success')
 
@@ -395,6 +483,10 @@ def update_task(response_id, task_id):
     if not is_incident_commander():
         return jsonify({'error': 'Unauthorized'}), 403
 
+    commander = User.query.filter_by(username=session['username']).first()
+    response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     task = Task.query.get_or_404(task_id)
     status = request.form.get('status')
 
@@ -402,7 +494,12 @@ def update_task(response_id, task_id):
     if status == 'COMPLETED':
         task.completed_at = datetime.utcnow()
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('incident_response_tasks', response_id=response_id))
 
     flash(f'Task status updated to {status}', 'success')
     return redirect(url_for('incident_response_tasks', response_id=response_id))
@@ -413,6 +510,10 @@ def update_resource(response_id, resource_id):
     if not is_incident_commander():
         return jsonify({'error': 'Unauthorized'}), 403
 
+    commander = User.query.filter_by(username=session['username']).first()
+    response = IncidentResponse.query.get_or_404(response_id)
+    if response.commander_id != commander.id:
+        abort(403)
     resource = Resource.query.get_or_404(resource_id)
     status = request.form.get('status')
     location = request.form.get('location')
@@ -423,7 +524,12 @@ def update_resource(response_id, resource_id):
     if status == 'DEPLOYED':
         resource.deployed_at = datetime.utcnow()
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('incident_response_resources', response_id=response_id))
 
     flash(f'Resource status updated to {status}', 'success')
     return redirect(url_for('incident_response_resources', response_id=response_id))

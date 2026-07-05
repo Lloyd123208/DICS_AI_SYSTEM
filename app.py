@@ -4,8 +4,10 @@ from flask import Flask, current_app, render_template, request, redirect, url_fo
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_apscheduler import APScheduler
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, SituationReport, CitizenReport
+from models import db, User, Incident, IncidentResponse, Task, Resource, CitizenReport, Agency, PostIncidentReport
 from scheduler import monitor_hazards
 from services.realtime_data import get_weather_data, get_earthquake_data
 from ai.prediction import predict_hazard
@@ -62,7 +64,7 @@ upload_dir = os.path.join(instance_dir, 'uploads', 'citizen_reports')
 os.makedirs(upload_dir, exist_ok=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'replace-this-with-a-secret')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['INSTANCE_DIR'] = instance_dir
@@ -70,9 +72,13 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['SCHEDULER_API_ENABLED'] = True
 app.config['SCHEDULER_TIMEZONE'] = 'UTC'
+app.config['PROPAGATE_EXCEPTIONS'] = False
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 csrf = CSRFProtect(app)
 db.init_app(app)
+limiter = Limiter(key_func=get_remote_address, app=app, default_limits=['200 per day', '50 per hour'])
 
 scheduler = APScheduler()
 scheduler.init_app(app)
@@ -131,6 +137,16 @@ app.add_url_rule('/responder-task/<int:task_id>/complete', endpoint='responder_c
 app.add_url_rule('/eoc-dashboard', endpoint='eoc_dashboard', view_func=eoc_dashboard)
 app.add_url_rule('/eoc/incidents', endpoint='eoc_incident_monitoring', view_func=eoc_incident_monitoring)
 app.add_url_rule('/eoc/resources', endpoint='eoc_resource_monitoring', view_func=eoc_resource_monitoring)
+
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    return render_template('pages/error_404.html', error=error), 404
+
+
+@app.errorhandler(500)
+def handle_server_error(error):
+    return render_template('pages/error_500.html', error=error), 500
 
 
 @app.context_processor
@@ -230,13 +246,14 @@ def migrate_incident_commander_tables():
             )
         """)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS situation_report (
+            CREATE TABLE IF NOT EXISTS incident_message (
                 id INTEGER PRIMARY KEY,
                 incident_response_id INTEGER NOT NULL,
                 reporter_id INTEGER NOT NULL,
                 title VARCHAR(200) NOT NULL,
                 content TEXT NOT NULL,
                 report_type VARCHAR(50) DEFAULT 'UPDATE',
+                source VARCHAR(20) DEFAULT 'coordinator',
                 affected_areas VARCHAR(500),
                 casualties INTEGER,
                 evacuated INTEGER,
@@ -245,11 +262,40 @@ def migrate_incident_commander_tables():
                 FOREIGN KEY (reporter_id) REFERENCES user(id)
             )
         """)
+        if cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='situation_report'").fetchone():
+            cursor.execute("SELECT COUNT(*) FROM situation_report")
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO incident_message (
+                        id, incident_response_id, reporter_id, title, content, report_type,
+                        source, affected_areas, casualties, evacuated, created_at
+                    )
+                    SELECT id, incident_response_id, reporter_id, title, content, report_type,
+                           'commander' AS source, affected_areas, casualties, evacuated, created_at
+                    FROM situation_report
+                """)
+        if cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'").fetchone():
+            cursor.execute("SELECT COUNT(*) FROM message")
+            if cursor.fetchone()[0] > 0:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO incident_message (
+                        id, incident_response_id, reporter_id, title, content, report_type,
+                        source, affected_areas, casualties, evacuated, created_at
+                    )
+                    SELECT id, incident_response_id, sender_id, title, content, report_type,
+                           'coordinator' AS source, affected_areas, casualties, evacuated, created_at
+                    FROM message
+                """)
         conn.commit()
 
 
 def create_default_admin():
-    admin = User.query.filter_by(role='admin').first()
+    admin = User.query.filter_by(username='admin').first()
+    if admin is None:
+        admin = User.query.filter_by(email='admin@dics-ai.local').first()
+    if admin is None:
+        admin = User.query.filter_by(role='admin').first()
+
     if admin is None:
         admin = User(
             username='admin',
@@ -259,7 +305,46 @@ def create_default_admin():
             role='admin',
         )
         db.session.add(admin)
+    else:
+        admin.role = 'admin'
+        admin.email_verified = True
+        if not admin.email:
+            admin.email = 'admin@dics-ai.local'
+        if admin.username != 'admin' and admin.username in {None, ''}:
+            admin.username = 'admin'
+        if not admin.password or not check_password_hash(admin.password, 'Admin123!'):
+            admin.password = generate_password_hash('Admin123!')
+
+    try:
         db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Unable to create default admin: {e}')
+
+
+def seed_agencies():
+    canonical_agencies = [
+        'BFP',
+        'PNP',
+        'DOH',
+        'DILG',
+        'MDRRMO',
+        'PAGASA',
+        'PHIVOLCS',
+        'CIVIL DEFENSE',
+        'RED CROSS',
+        'LOCAL GOVERNMENT',
+    ]
+    with app.app_context():
+        for name in canonical_agencies:
+            existing = Agency.query.filter_by(name=name).first()
+            if existing is None:
+                db.session.add(Agency(name=name))
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f'Unable to seed agencies: {exc}')
 
 
 def create_tables():
@@ -268,6 +353,7 @@ def create_tables():
         migrate_user_table()
         migrate_incident_commander_tables()
         create_default_admin()
+        seed_agencies()
 
 
 _init_attempted = False
@@ -283,6 +369,7 @@ def lazy_init():
             db.create_all()
             migrate_user_table()
             create_default_admin()
+            seed_agencies()
             app.logger.info('Database initialized successfully')
     except Exception as e:
         app.logger.error(f'Database initialization error: {e}')
@@ -307,13 +394,19 @@ def verify_password(user, password):
 
     if stored == password:
         user.password = generate_password_hash(password)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Unable to update password: {str(e)}', 'error')
+            return False
         return True
 
     return False
 
 
 @app.route('/', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
     if 'username' in session:
         role = session.get('role')
@@ -325,6 +418,8 @@ def login():
             return redirect(url_for('responder_dashboard'))
         elif role == 'eoc_staff':
             return redirect(url_for('eoc_dashboard'))
+        elif role == 'citizen':
+            return redirect(url_for('citizen_report'))
         else:
             return redirect(url_for('dashboard'))
 
@@ -348,6 +443,8 @@ def login():
                 return redirect(url_for('responder_dashboard'))
             elif user.role == 'eoc_staff':
                 return redirect(url_for('eoc_dashboard'))
+            elif user.role == 'citizen':
+                return redirect(url_for('citizen_report'))
             else:
                 return redirect(url_for('dashboard'))
         else:
@@ -369,6 +466,8 @@ def register():
         contact_number = request.form.get('contact_number', '').strip()
         if not username or not password or not full_name or not contact_number or not email:
             error = 'All fields are required.'
+        elif len(password) < 8:
+            error = 'Password must be at least 8 characters.'
         elif User.query.filter_by(username=username).first():
             error = 'Username already exists.'
         elif User.query.filter_by(email=email).first():
@@ -380,10 +479,15 @@ def register():
                 password=generate_password_hash(password),
                 full_name=full_name,
                 contact_number=contact_number,
-                role='user',
+                role='citizen',
             )
             db.session.add(new_user)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error creating account: {str(e)}', 'error')
+                return render_template('pages/register.html', error=None)
             flash('Registration successful! You can now log in.', 'success')
             return redirect(url_for('login'))
     return render_template('pages/register.html', error=error)
@@ -411,6 +515,8 @@ def dashboard():
         return redirect(url_for('responder_dashboard'))
     elif user.role == 'eoc_staff':
         return redirect(url_for('eoc_dashboard'))
+    elif user.role == 'citizen':
+        return redirect(url_for('citizen_report'))
     elif user.role in ['admin', 'agency_coordinator']:
         return redirect(url_for('admin.admin'))
 
@@ -441,6 +547,9 @@ def dashboard():
 
 @app.route('/api/map-pins')
 def get_map_pins():
+    if 'username' not in session:
+        return {'error': 'Unauthorized'}, 401
+
     incidents = Incident.query.order_by(Incident.created_at.desc()).all()
     pins = []
 
@@ -588,6 +697,8 @@ def get_analytics_data():
 
 @app.route('/live-prediction')
 def live_prediction():
+    if 'username' not in session:
+        return {'error': 'Unauthorized'}, 401
     if not os.getenv('OPENWEATHER_API_KEY'):
         return {'error': 'OPENWEATHER_API_KEY is not configured.'}
     weather_data = get_weather_data('Cavite')
@@ -618,7 +729,9 @@ def analytics():
     hazard_rows = db.session.query(Incident.hazard_type, db.func.count(Incident.id)).group_by(Incident.hazard_type).order_by(db.func.count(Incident.id).desc()).all()
     hazard_labels = [row[0] for row in hazard_rows]
     hazard_counts = [row[1] for row in hazard_rows]
-    return render_template('pages/analytics.html', total_incidents=total_incidents, avg_score=avg_score, active_responses=active_responses, active_alerts=active_alerts, hazard_labels=hazard_labels, hazard_counts=hazard_counts)
+    post_incident_reports = db.session.query(PostIncidentReport).join(IncidentResponse).order_by(PostIncidentReport.created_at.desc()).all()
+    average_rating = db.session.query(db.func.avg(PostIncidentReport.response_rating)).scalar() or 0
+    return render_template('pages/analytics.html', total_incidents=total_incidents, avg_score=avg_score, active_responses=active_responses, active_alerts=active_alerts, hazard_labels=hazard_labels, hazard_counts=hazard_counts, post_incident_reports=post_incident_reports, average_rating=average_rating)
 
 
 @app.route('/hazard-map')

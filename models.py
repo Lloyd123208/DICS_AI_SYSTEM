@@ -24,6 +24,12 @@ class User(db.Model):
         return self.password
 
 
+class Agency(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class CitizenReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -78,8 +84,7 @@ class IncidentResponse(db.Model):
     commander = db.relationship('User', backref='incident_responses')
     tasks = db.relationship('Task', backref='incident_response', lazy=True, cascade='all, delete-orphan')
     resources = db.relationship('Resource', backref='incident_response', lazy=True, cascade='all, delete-orphan')
-    reports = db.relationship('SituationReport', backref='incident_response', lazy=True, cascade='all, delete-orphan')
-    messages = db.relationship('Message', backref='incident_response', lazy=True, cascade='all, delete-orphan')
+    messages = db.relationship('IncidentMessage', backref='incident_response', lazy=True, cascade='all, delete-orphan')
 
 
 class Task(db.Model):
@@ -99,20 +104,34 @@ class Task(db.Model):
     assigned_by = db.relationship('User', backref='assigned_tasks', foreign_keys=[assigned_by_id])
 
 
-class Message(db.Model):
-    """Inter-agency comms message model"""
+class IncidentMessage(db.Model):
+    """Unified inter-role incident communications log."""
     id = db.Column(db.Integer, primary_key=True)
     incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     report_type = db.Column(db.String(50), default='UPDATE')
+    source = db.Column(db.String(20), default='coordinator')
     affected_areas = db.Column(db.String(500), nullable=True)
     casualties = db.Column(db.Integer, nullable=True)
     evacuated = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    reporter = db.relationship('User', backref='messages', foreign_keys=[sender_id])
+    reporter = db.relationship('User', backref='incident_messages', foreign_keys=[reporter_id])
+
+
+class PostIncidentReport(db.Model):
+    """Structured lessons learned and feedback after an incident response closes."""
+    id = db.Column(db.Integer, primary_key=True)
+    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False, unique=True)
+    lessons_learned = db.Column(db.Text, nullable=True)
+    response_rating = db.Column(db.Integer, nullable=True)
+    recommendations = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    incident_response = db.relationship('IncidentResponse', backref='post_incident_report', uselist=False)
 
 
 class Resource(db.Model):
@@ -129,17 +148,3 @@ class Resource(db.Model):
     deployed_at = db.Column(db.DateTime, nullable=True)
 
 
-class SituationReport(db.Model):
-    """Situation updates and incident timeline"""
-    id = db.Column(db.Integer, primary_key=True)
-    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False)
-    reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    report_type = db.Column(db.String(50), default='UPDATE')  # UPDATE, ALERT, MILESTONE, CLOSURE
-    affected_areas = db.Column(db.String(500), nullable=True)
-    casualties = db.Column(db.Integer, nullable=True)
-    evacuated = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    reporter = db.relationship('User', backref='situation_reports', foreign_keys=[reporter_id])

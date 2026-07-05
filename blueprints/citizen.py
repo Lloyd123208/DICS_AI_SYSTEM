@@ -98,6 +98,23 @@ def citizen_report():
     return render_template('pages/citizen_report.html', total_incidents=total_incidents, pending_count=pending_count)
 
 
+@citizen_bp.route('/citizen-dashboard')
+def citizen_dashboard():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(username=session['username']).first()
+    if not user:
+        return redirect(url_for('logout'))
+
+    incidents = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).all()
+    total_incidents = len(incidents)
+    pending_count = sum(1 for i in incidents if not i.alert)
+    alert_count = sum(1 for i in incidents if i.alert)
+
+    return render_template('pages/citizen_dashboard.html', total_incidents=total_incidents, pending_count=pending_count, alert_count=alert_count, incidents=incidents[:5])
+
+
 @citizen_bp.route('/citizen-alerts')
 def citizen_alerts():
     if 'username' not in session:

@@ -96,7 +96,7 @@
                                 <span class="text-muted" style="font-size:0.75rem;">ID #{{ task.id }}</span>
                             </td>
                             <td>
-                                <a href="{{ url_for('coordinator_response_detail', response_id=task.incident_response_id) }}" class="text-info" style="text-decoration:none;font-size:0.85rem;">
+                                <a href="{{ url_for('coordinator.coordinator_response_detail', response_id=task.incident_response_id) }}" class="text-info" style="text-decoration:none;font-size:0.85rem;">
                                     #{{ task.incident_response.incident_id }}
                                     <span class="text-muted" style="font-size:0.75rem;display:block;">{{ task.incident_response.incident.hazard_type }}</span>
                                 </a>
@@ -134,7 +134,7 @@
                                 <span class="text-muted small">{{ task.assigned_by.username }}</span>
                             </td>
                             <td class="text-center">
-                                <form method="POST" action="{{ url_for('coordinator_update_task', task_id=task.id) }}">
+                                <form method="POST" action="{{ url_for('coordinator.coordinator_update_task', task_id=task.id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="status" class="form-select form-select-sm" style="max-width:140px;font-size:0.78rem;" onchange="this.form.submit()">
                                         <option value="PENDING" {% if task.status == 'PENDING' %}selected{% endif %}>Pending</option>

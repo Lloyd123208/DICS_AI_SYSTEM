@@ -30,7 +30,7 @@
                     </p>
                 </div>
 
-                <form method="POST" action="{{ url_for('incident_response_close_page', response_id=response.id) }}"
+                <form method="POST" action="{{ url_for('commander.incident_response_close_page', response_id=response.id) }}"
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       onsubmit="return confirm('WARNING: Are you sure you want to permanently close this incident response?')">
                     <div class="mb-3">
@@ -55,7 +55,7 @@
                                 style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;">
                             <i class="bi bi-archive-fill me-2"></i>Finalize and Close Response
                         </button>
-                        <a href="{{ url_for('incident_response_detail', response_id=response.id) }}"
+                        <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}"
                            class="btn btn-outline-secondary btn-modern flex-grow-1 py-3 text-center fw-bold">
                             Cancel
                         </a>

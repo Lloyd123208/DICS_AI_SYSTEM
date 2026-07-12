@@ -80,7 +80,7 @@
                         <div style="padding:1rem;background:rgba(239,68,68,0.07);border-radius:8px;border-left:3px solid #EF4444;">
                             <span class="text-muted d-block small mb-1" style="text-transform:uppercase;letter-spacing:0.05em;">Risk Assessment</span>
                             <div class="d-flex align-items-center gap-2">
-                                <h2 class="fw-bold mb-0" style="color:#FCA5A5;">{{ "%.2f"|format(response.incident.score or 0) }}</h2>
+                                <h2 class="fw-bold mb-0" style="color:#FCA5A5;">{{ "%.2f"|format(response.incident.score|float(0)) }}</h2>
                                 <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:5px;font-size:0.75em;font-weight:700;text-transform:uppercase;">
                                     {{ response.incident.level }}
                                 </span>
@@ -153,17 +153,17 @@
                     <h5 class="mb-0">Quick Actions</h5>
                 </div>
                 <div class="d-flex flex-column gap-2">
-                    <a href="{{ url_for('incident_response_tasks', response_id=response.id) }}"
+                    <a href="{{ url_for('commander.incident_response_tasks', response_id=response.id) }}"
                        class="btn btn-primary-modern btn-modern py-3 d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-list-task me-2"></i>Assign Agency Task</span>
                         <i class="bi bi-arrow-right"></i>
                     </a>
-                    <a href="{{ url_for('incident_response_resources', response_id=response.id) }}"
+                    <a href="{{ url_for('commander.incident_response_resources', response_id=response.id) }}"
                        class="btn btn-success-modern btn-modern py-3 d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-boxes me-2"></i>Allocate Resource</span>
                         <i class="bi bi-arrow-right"></i>
                     </a>
-                    <a href="{{ url_for('incident_response_reports', response_id=response.id) }}"
+                    <a href="{{ url_for('commander.incident_response_reports', response_id=response.id) }}"
                        class="btn btn-modern py-3 d-flex justify-content-between align-items-center"
                        style="background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border:none;">
                         <span><i class="bi bi-file-text me-2"></i>Create SitRep</span>

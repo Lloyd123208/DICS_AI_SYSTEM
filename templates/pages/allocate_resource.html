@@ -19,7 +19,7 @@
                         <p class="mb-0"><strong>Location:</strong> {{ response.incident.location or 'Unknown' }}</p>
                     </div>
 
-                    <form method="POST" action="{{ url_for('allocate_resource', response_id=response.id) }}">
+                    <form method="POST" action="{{ url_for('commander.allocate_resource', response_id=response.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <!-- Resource Type -->
                         <div class="mb-3">
@@ -85,7 +85,7 @@
                             <button type="submit" class="btn btn-success flex-grow-1">
                                 <i class="bi bi-check-circle"></i> Allocate Resource
                             </button>
-                            <a href="{{ url_for('incident_response_detail', response_id=response.id) }}" class="btn btn-secondary flex-grow-1">
+                            <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}" class="btn btn-secondary flex-grow-1">
                                 <i class="bi bi-x-circle"></i> Cancel
                             </a>
                         </div>

@@ -153,7 +153,7 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <form method="POST" action="{{ url_for('responder_complete_task', task_id=task.id) }}" class="ms-2">
+                                <form method="POST" action="{{ url_for('responder.responder_complete_task', task_id=task.id) }}" class="ms-2">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm" title="Mark complete" style="background:rgba(16,185,129,0.15);color:#6EE7B7;border:1px solid rgba(16,185,129,0.3);font-size:0.75rem;padding:0.3rem 0.6rem;" onclick="return confirm('Mark this task as completed?')">
                                         <i class="bi bi-check2"></i>

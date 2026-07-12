@@ -88,7 +88,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('incident_response_tasks', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_tasks', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'tasks' %}btn-primary-modern text-white{% else %}text-muted{% endif %}"
                                style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;transition:all 0.2s;">
@@ -96,7 +96,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('incident_response_resources', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_resources', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'resources' %}btn-primary-modern text-white{% else %}text-muted{% endif %}"
                                style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;transition:all 0.2s;">
@@ -104,7 +104,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('incident_response_reports', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_reports', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'reports' %}btn-primary-modern text-white{% else %}text-muted{% endif %}"
                                style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;transition:all 0.2s;">
@@ -112,7 +112,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('incident_response_timeline', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_timeline', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'timeline' %}btn-primary-modern text-white{% else %}text-muted{% endif %}"
                                style="font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;transition:all 0.2s;">
@@ -122,7 +122,7 @@
 
                         {% if response.status != 'CLOSED' %}
                         <li class="nav-item ms-auto">
-                            <a href="{{ url_for('incident_response_close_page', response_id=response.id) }}"
+                            <a href="{{ url_for('commander.incident_response_close_page', response_id=response.id) }}"
                                class="nav-link d-flex align-items-center gap-1 px-3 py-2 rounded
                                       {% if active_tab == 'close' %}btn-success-modern text-white
                                       {% else %}text-white{% endif %}"

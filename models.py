@@ -64,6 +64,11 @@ class Incident(db.Model):
     verified_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     reported_by = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Aftershock forecast fields (populated only for hazard_type='earthquake' mainshocks)
+    aftershock_probability_pct = db.Column(db.Float, nullable=True)
+    aftershock_target_magnitude = db.Column(db.Float, nullable=True)
+    aftershock_window_hours = db.Column(db.Integer, nullable=True)
+    aftershock_params_default = db.Column(db.Boolean, nullable=True)
     response = db.relationship('IncidentResponse', backref='incident', lazy=True, uselist=False)
     verifier = db.relationship('User', foreign_keys=[verified_by_id], backref='verified_incidents')
 

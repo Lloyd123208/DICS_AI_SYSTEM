@@ -5,6 +5,13 @@ from io import BytesIO
 from unittest.mock import patch
 
 os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+# CRITICAL: this must be set before `app` is imported. Flask-SQLAlchemy binds
+# and caches its engine the first time it's used; overriding
+# SQLALCHEMY_DATABASE_URI on the config *after* import is not reliable and
+# has previously caused the test suite to create/drop tables against the
+# real instance/database.db file instead of an isolated database. Forcing
+# an in-memory DB before import guarantees the real file is never touched.
+os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
 
 from flask import render_template_string
 
@@ -110,20 +117,27 @@ class ResponderRoutesTestCase(unittest.TestCase):
             else:
                 os.environ['SECRET_KEY'] = original_secret
 
-    def test_secret_key_falls_back_to_default_when_unset(self):
+    def test_secret_key_generates_random_value_when_unset(self):
+        # SECRET_KEY must never fall back to a fixed, known string checked into
+        # source control (session forgery risk). When unset, the app should
+        # generate a random per-process key instead.
         original_secret = os.environ.get('SECRET_KEY')
         os.environ.pop('SECRET_KEY', None)
 
         try:
             import app as app_module
-            app_module = importlib.reload(app_module)
-            self.assertTrue(app_module.app.config['SECRET_KEY'])
-            self.assertEqual(app_module.app.config['SECRET_KEY'], 'dev-secret-key-change-me')
+            with self.assertWarns(RuntimeWarning):
+                app_module = importlib.reload(app_module)
+            secret_key = app_module.app.config['SECRET_KEY']
+            self.assertTrue(secret_key)
+            self.assertNotEqual(secret_key, 'dev-secret-key-change-me')
+            self.assertGreaterEqual(len(secret_key), 32)
         finally:
             if original_secret is None:
                 os.environ.pop('SECRET_KEY', None)
             else:
                 os.environ['SECRET_KEY'] = original_secret
+            importlib.reload(app_module)
 
     def test_citizen_report_creates_record_with_photo_and_anonymous_flag(self):
         with self.client.session_transaction() as session:

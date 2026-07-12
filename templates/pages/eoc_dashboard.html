@@ -231,7 +231,7 @@
                                     <span style="padding:0.3em 0.6em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🟡 {{ incident.level }}</span>
                                 {% endif %}
                             </td>
-                            <td><strong class="text-info">{{ "%.2f"|format(incident.score or 0) }}%</strong></td>
+                            <td><strong class="text-info">{{ "%.2f"|format(incident.score|float(0)) }}%</strong></td>
                             <td>
                                 {% if incident.response %}
                                     <span class="badge-status-active" style="font-size:0.72rem;">RESPONSE ACTIVE</span>

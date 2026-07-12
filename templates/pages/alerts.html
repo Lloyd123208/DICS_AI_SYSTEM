@@ -77,7 +77,7 @@
                                         <span style="padding: 0.35em 0.65em; background: rgba(16,185,129,0.2); color: #86EFAC; border: 1px solid rgba(16,185,129,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">🟢 LOW</span>
                                     {% endif %}
                                 </td>
-                                <td><strong class="text-info">{{ '%.1f'|format(alert.score or 0) }}%</strong></td>
+                                <td><strong class="text-info">{{ '%.1f'|format(alert.score|float(0)) }}%</strong></td>
                                 <td><span class="text-muted small">{{ alert.message }}</span></td>
                             </tr>
                         {% endfor %}

@@ -79,12 +79,12 @@
                                     </td>
                                     <td><span class="text-muted small">{{ res.location or '—' }}</span></td>
                                     <td>
-                                        <a href="{{ url_for('coordinator_response_detail', response_id=res.incident_response_id) }}" class="text-info" style="text-decoration:none;font-size:0.82rem;">
+                                        <a href="{{ url_for('coordinator.coordinator_response_detail', response_id=res.incident_response_id) }}" class="text-info" style="text-decoration:none;font-size:0.82rem;">
                                             #{{ res.incident_response.incident_id }}
                                         </a>
                                     </td>
                                     <td class="text-center">
-                                        <form method="POST" action="{{ url_for('coordinator_update_resource', resource_id=res.id) }}">
+                                        <form method="POST" action="{{ url_for('coordinator.coordinator_update_resource', resource_id=res.id) }}">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <select name="status" class="form-select form-select-sm" style="max-width:120px;font-size:0.76rem;" onchange="this.form.submit()">
                                                 <option value="AVAILABLE" {% if res.status == 'AVAILABLE' %}selected{% endif %}>Available</option>

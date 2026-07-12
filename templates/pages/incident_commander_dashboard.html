@@ -131,7 +131,7 @@
                             </td>
                             <td><span class="text-muted small">{{ response.started_at.strftime('%b %d, %Y %H:%M') }}</span></td>
                             <td class="text-center">
-                                <a href="{{ url_for('incident_response_detail', response_id=response.id) }}" class="btn btn-sm btn-primary-modern btn-modern">
+                                <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}" class="btn btn-sm btn-primary-modern btn-modern">
                                     <i class="bi bi-eye me-1"></i>View
                                 </a>
                             </td>
@@ -193,7 +193,7 @@
                                         <span style="padding:0.3em 0.6em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🟡 {{ incident.level }}</span>
                                     {% endif %}
                                 </td>
-                                <td><strong class="text-info">{{ "%.2f"|format(incident.score or 0) }}%</strong></td>
+                                <td><strong class="text-info">{{ "%.2f"|format(incident.score|float(0)) }}%</strong></td>
                                 <td>
                                     {% if incident.alert %}
                                         <span class="badge-status-active" style="font-size:0.72rem;">ACTIVE</span>
@@ -203,7 +203,7 @@
                                 </td>
                                 <td><span class="text-muted small">{{ incident.created_at.strftime('%b %d, %H:%M') }}</span></td>
                                 <td class="text-center">
-                                    <form method="POST" action="{{ url_for('activate_incident_response', incident_id=incident.id) }}" style="display:inline;">
+                                    <form method="POST" action="{{ url_for('commander.activate_incident_response', incident_id=incident.id) }}" style="display:inline;">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;font-weight:600;border-radius:6px;padding:0.35rem 0.75rem;"
                                             onclick="return confirm('Activate incident response for #{{ incident.id }}?')">

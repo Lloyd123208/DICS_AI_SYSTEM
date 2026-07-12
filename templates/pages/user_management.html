@@ -575,8 +575,10 @@ function downloadDatabaseBackup(btn) {
     // tab to /admin/backup directly. This keeps the admin on this page the
     // whole time — whether they click Save or Cancel on the native file
     // dialog — since the browser's save prompt is tied to the iframe's
-    // request, not the page you're looking at.
-    const originalHTML = btn.innerHTML;
+    // request, not the page you're looking at. The page then reloads
+    // shortly after, since there's no reliable cross-browser event for
+    // "the save dialog closed" — the reload gives clear, consistent
+    // feedback that the backup attempt is done either way.
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Preparing backup…';
 
@@ -589,12 +591,8 @@ function downloadDatabaseBackup(btn) {
     }
     iframe.src = '/admin/backup';
 
-    // Re-enable the button shortly after; there's no reliable cross-browser
-    // event for "the save dialog closed", so this just gives the download
-    // enough time to start before restoring the button.
     setTimeout(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
+        window.location.reload();
     }, 1500);
 }
 </script>

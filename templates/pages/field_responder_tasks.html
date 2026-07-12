@@ -31,7 +31,7 @@
         <div class="d-flex flex-wrap gap-2 align-items-center">
             <a href="{{ url_for('responder.responder_tasks') }}" class="btn btn-sm {% if not status_filter %}active{% endif %}" style="background:{% if not status_filter %}rgba(249,115,22,0.2);color:#F97316;border:1px solid rgba(249,115,22,0.5){% else %}rgba(255,255,255,0.04);color:#9CA3AF;border:1px solid rgba(255,255,255,0.08){% endif %};font-size:0.78rem;">All</a>
             {% for s in ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'] %}
-            <a href="{{ url_for('responder_tasks', status=s) }}" class="btn btn-sm {% if status_filter == s %}active{% endif %}" style="background:{% if status_filter == s %}rgba(249,115,22,0.2);color:#F97316;border:1px solid rgba(249,115,22,0.5){% else %}rgba(255,255,255,0.04);color:#9CA3AF;border:1px solid rgba(255,255,255,0.08){% endif %};font-size:0.78rem;">
+            <a href="{{ url_for('responder.responder_tasks', status=s) }}" class="btn btn-sm {% if status_filter == s %}active{% endif %}" style="background:{% if status_filter == s %}rgba(249,115,22,0.2);color:#F97316;border:1px solid rgba(249,115,22,0.5){% else %}rgba(255,255,255,0.04);color:#9CA3AF;border:1px solid rgba(255,255,255,0.08){% endif %};font-size:0.78rem;">
                 {{ s.replace('_', ' ') | title }}
             </a>
             {% endfor %}
@@ -102,14 +102,14 @@
                                 {% if task.status in ['PENDING', 'IN_PROGRESS'] %}
                                 <div class="d-flex gap-2 mt-1">
                                     {% if task.status == 'PENDING' %}
-                                    <form method="POST" action="{{ url_for('responder_update_task', task_id=task.id) }}">
+                                    <form method="POST" action="{{ url_for('responder.responder_update_task', task_id=task.id) }}">
                                         <input type="hidden" name="status" value="IN_PROGRESS">
                                         <button type="submit" class="btn btn-sm" style="background:rgba(56,189,248,0.15);color:#38BDF8;border:1px solid rgba(56,189,248,0.3);font-size:0.73rem;padding:0.28rem 0.6rem;">
                                             <i class="bi bi-play-fill me-1"></i>Start
                                         </button>
                                     </form>
                                     {% endif %}
-                                    <form method="POST" action="{{ url_for('responder_update_task', task_id=task.id) }}">
+                                    <form method="POST" action="{{ url_for('responder.responder_update_task', task_id=task.id) }}">
                                         <input type="hidden" name="status" value="COMPLETED">
                                         <button type="submit" class="btn btn-sm" style="background:rgba(16,185,129,0.15);color:#6EE7B7;border:1px solid rgba(16,185,129,0.3);font-size:0.73rem;padding:0.28rem 0.6rem;" onclick="return confirm('Mark task as completed?')">
                                             <i class="bi bi-check2 me-1"></i>Complete

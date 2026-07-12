@@ -60,7 +60,7 @@
             <div class="d-flex align-items-center justify-content-between">
                 <div>
                     <div class="stat-label">Avg. Risk Score</div>
-                    <div class="stat-value">{{ "%.1f"|format(avg_score|default(0)) }}%</div>
+                    <div class="stat-value">{{ "%.1f"|format(avg_score|float(0)) }}%</div>
                     <div class="stat-description">Mean score, all incidents</div>
                 </div>
                 <div class="icon-badge icon-badge-success">
@@ -169,7 +169,7 @@
             <div class="col-md-6">
                 <div class="p-3 rounded" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
                     <div class="text-muted small">Average response rating</div>
-                    <div class="text-white fs-3 fw-bold">{{ "%.1f"|format(average_rating|default(0)) }}/5</div>
+                    <div class="text-white fs-3 fw-bold">{{ "%.1f"|format(average_rating|float(0)) }}/5</div>
                 </div>
             </div>
             <div class="col-md-6">

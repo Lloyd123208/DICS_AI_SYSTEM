@@ -12,7 +12,7 @@
                     <span class="section-header-icon" style="color:#C4B5FD;"><i class="bi bi-file-earmark-plus-fill"></i></span>
                     <h4 class="mb-0">Create Situation Report</h4>
                     <span class="ms-3">
-                        <a href="{{ url_for('incident_response_detail', response_id=response.id) }}" class="btn btn-sm btn-modern" style="background:rgba(139,92,246,0.1);color:#C4B5FD;border:1px solid rgba(139,92,246,0.25);font-size:0.78rem;">
+                        <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}" class="btn btn-sm btn-modern" style="background:rgba(139,92,246,0.1);color:#C4B5FD;border:1px solid rgba(139,92,246,0.25);font-size:0.78rem;">
                             <i class="bi bi-arrow-left me-1"></i>Back to Response
                         </a>
                     </span>
@@ -52,7 +52,7 @@
                     <h5 class="mb-0">Report Details</h5>
                 </div>
 
-                <form method="POST" action="{{ url_for('create_situation_report', response_id=response.id) }}">
+                <form method="POST" action="{{ url_for('commander.create_situation_report', response_id=response.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <div class="mb-3">
@@ -99,7 +99,7 @@
                         <button type="submit" class="btn btn-modern flex-grow-1 py-2" style="background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff;font-weight:700;border:none;">
                             <i class="bi bi-send me-2"></i>Submit Report
                         </button>
-                        <a href="{{ url_for('incident_response_detail', response_id=response.id) }}"
+                        <a href="{{ url_for('commander.incident_response_detail', response_id=response.id) }}"
                            class="btn btn-modern py-2" style="background:rgba(107,114,128,0.15);color:#9CA3AF;border:1px solid rgba(107,114,128,0.3);font-weight:600;">
                             <i class="bi bi-x me-1"></i>Cancel
                         </a>

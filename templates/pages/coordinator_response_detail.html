@@ -102,7 +102,7 @@
                             </div>
                             <p class="text-muted mb-2 mt-1" style="font-size:0.78rem;line-height:1.4;">{{ task.description }}</p>
                             <div class="d-flex align-items-center gap-2">
-                                <form method="POST" action="{{ url_for('coordinator_update_task', task_id=task.id) }}">
+                                <form method="POST" action="{{ url_for('coordinator.coordinator_update_task', task_id=task.id) }}">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <select name="status" class="form-select form-select-sm" style="max-width:130px;font-size:0.75rem;" onchange="this.form.submit()">
                                         <option value="PENDING" {% if task.status == 'PENDING' %}selected{% endif %}>Pending</option>

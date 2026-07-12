@@ -62,9 +62,24 @@ instance_dir = os.path.join(base_dir, 'instance')
 os.makedirs(instance_dir, exist_ok=True)
 upload_dir = os.path.join(instance_dir, 'uploads', 'citizen_reports')
 os.makedirs(upload_dir, exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL',
+    f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me'
+_secret_key = os.environ.get('SECRET_KEY')
+if not _secret_key:
+    import secrets as _secrets
+    import warnings as _warnings
+    _secret_key = _secrets.token_hex(32)
+    _warnings.warn(
+        'SECRET_KEY environment variable is not set. Generated a random '
+        'temporary key for this process only; all sessions will be invalidated '
+        'on restart and this is NOT safe for a multi-process/production deployment. '
+        'Set the SECRET_KEY environment variable before deploying.',
+        RuntimeWarning
+    )
+app.config['SECRET_KEY'] = _secret_key
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['INSTANCE_DIR'] = instance_dir
@@ -438,15 +453,15 @@ def login():
     if 'username' in session:
         role = session.get('role')
         if role == 'incident_commander':
-            return redirect(url_for('incident_commander_dashboard'))
+            return redirect(url_for('commander.incident_commander_dashboard'))
         elif role == 'agency_coordinator':
-            return redirect(url_for('coordinator_dashboard'))
+            return redirect(url_for('coordinator.coordinator_dashboard'))
         elif role == 'field_responder':
-            return redirect(url_for('responder_dashboard'))
+            return redirect(url_for('responder.responder_dashboard'))
         elif role == 'eoc_staff':
-            return redirect(url_for('eoc_dashboard'))
+            return redirect(url_for('eoc.eoc_dashboard'))
         elif role == 'citizen':
-            return redirect(url_for('citizen_dashboard'))
+            return redirect(url_for('citizen.citizen_dashboard'))
         else:
             return redirect(url_for('dashboard'))
 
@@ -464,15 +479,15 @@ def login():
                 session['agency'] = user.agency or 'FIELD UNIT'
                 flash('Welcome back, ' + user.username + '!', 'success')
                 if user.role == 'incident_commander':
-                    return redirect(url_for('incident_commander_dashboard'))
+                    return redirect(url_for('commander.incident_commander_dashboard'))
                 elif user.role == 'agency_coordinator':
-                    return redirect(url_for('coordinator_dashboard'))
+                    return redirect(url_for('coordinator.coordinator_dashboard'))
                 elif user.role == 'field_responder':
-                    return redirect(url_for('responder_dashboard'))
+                    return redirect(url_for('responder.responder_dashboard'))
                 elif user.role == 'eoc_staff':
-                    return redirect(url_for('eoc_dashboard'))
+                    return redirect(url_for('eoc.eoc_dashboard'))
                 elif user.role == 'citizen':
-                    return redirect(url_for('citizen_dashboard'))
+                    return redirect(url_for('citizen.citizen_dashboard'))
                 else:
                     return redirect(url_for('dashboard'))
             else:
@@ -541,23 +556,29 @@ def dashboard():
         return redirect(url_for('logout'))
 
     if user.role == 'incident_commander':
-        return redirect(url_for('incident_commander_dashboard'))
+        return redirect(url_for('commander.incident_commander_dashboard'))
     elif user.role == 'field_responder':
-        return redirect(url_for('responder_dashboard'))
+        return redirect(url_for('responder.responder_dashboard'))
     elif user.role == 'eoc_staff':
-        return redirect(url_for('eoc_dashboard'))
+        return redirect(url_for('eoc.eoc_dashboard'))
     elif user.role == 'citizen':
-        return redirect(url_for('citizen_dashboard'))
+        return redirect(url_for('citizen.citizen_dashboard'))
     elif user.role == 'agency_coordinator':
-        return redirect(url_for('coordinator_dashboard'))
-    elif user.role == 'admin':
-        return redirect(url_for('admin.admin'))
+        return redirect(url_for('coordinator.coordinator_dashboard'))
 
-    incidents = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).limit(5).all()
-    total_incidents = Incident.query.filter_by(user_id=user.id).count()
-    alert_count = Incident.query.filter_by(user_id=user.id, alert=True).count()
-    latest_incident = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).first()
-    latest_risk_score = latest_incident.score if latest_incident else 0
+    if user.role == 'admin':
+        # System-wide view for admins, not scoped to a single user's own reports.
+        incidents = Incident.query.order_by(Incident.created_at.desc()).limit(5).all()
+        total_incidents = Incident.query.count()
+        alert_count = Incident.query.filter_by(alert=True).count()
+        latest_incident = Incident.query.order_by(Incident.created_at.desc()).first()
+        latest_risk_score = latest_incident.score if latest_incident else 0
+    else:
+        incidents = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).limit(5).all()
+        total_incidents = Incident.query.filter_by(user_id=user.id).count()
+        alert_count = Incident.query.filter_by(user_id=user.id, alert=True).count()
+        latest_incident = Incident.query.filter_by(user_id=user.id).order_by(Incident.created_at.desc()).first()
+        latest_risk_score = latest_incident.score if latest_incident else 0
 
     earthquake_data = get_earthquake_data()
     latest_earthquake_magnitude = 0

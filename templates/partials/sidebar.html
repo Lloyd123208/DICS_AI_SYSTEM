@@ -75,7 +75,7 @@
                     <i class="bi bi-check-circle-fill"></i>
                     <span class="nav-text sidebar-text-show">Incident Verification</span>
                 </a>
-                <a href="/admin/backup" class="sidebar-nav-link {{ 'active' if request.path == '/admin/backup' else '' }}" data-tooltip="Export Database">
+                <a href="/admin/backup" id="sidebarBackupLink" class="sidebar-nav-link {{ 'active' if request.path == '/admin/backup' else '' }}" data-tooltip="Export Database">
                     <i class="bi bi-cloud-download-fill"></i>
                     <span class="nav-text sidebar-text-show">Database Backup</span>
                 </a>
@@ -826,14 +826,58 @@ body.sidebar-collapsed {
         });
     }
 
+    function initBackupLink() {
+        const link = document.getElementById('sidebarBackupLink');
+        if (!link) return;
+
+        link.addEventListener('click', function (e) {
+            // app.js registers a document-level click listener (initPageTransitions)
+            // that intercepts every <a href> click for a fade transition, then does
+            // a REAL navigation to the href itself. Without stopping propagation here,
+            // that listener still fires on this same click and navigates the tab to
+            // /admin/backup for real, racing this handler's iframe-based download.
+            e.stopPropagation();
+            e.preventDefault();
+            if (link.dataset.downloading === 'true') return;
+            link.dataset.downloading = 'true';
+
+            const textEl = link.querySelector('.nav-text');
+            const originalText = textEl ? textEl.textContent : null;
+            if (textEl) textEl.textContent = 'Preparing backup…';
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '0.6';
+
+            // Trigger the download inside a hidden iframe rather than
+            // navigating the tab to /admin/backup directly, since that route
+            // returns a raw file with no page of its own. The tab then
+            // reloads shortly after — whether the admin saves or cancels
+            // the native file dialog — so the page never sits in that
+            // ambiguous "navigated to a file" state.
+            let iframe = document.getElementById('backup-download-frame');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'backup-download-frame';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+            iframe.src = link.getAttribute('href');
+
+            setTimeout(function () {
+                window.location.reload();
+            }, 1500);
+        });
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () {
             initSidebar();
             initMobileDrawer();
+            initBackupLink();
         });
     } else {
         initSidebar();
         initMobileDrawer();
+        initBackupLink();
     }
 })();
 </script>

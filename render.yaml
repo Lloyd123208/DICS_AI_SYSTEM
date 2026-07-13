@@ -1,9 +1,3 @@
-databases:
-  # Render's managed Postgres -- free tier, no card required.
-  - name: dics-postgres
-    databaseName: dics_ai
-    plan: free
-
 services:
   - type: web
     name: dics-ai-system
@@ -16,10 +10,14 @@ services:
     # the scheduler, duplicating hazard-monitoring jobs.
     startCommand: gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT
     envVars:
+      # Paste your Neon connection string here when creating the Blueprint.
+      # Render will prompt you for this since it's marked sync: false.
+      # Get it from the Neon console -> your project -> Connection Details.
+      # Use the "Pooled connection" string, and make sure it starts with
+      # postgresql:// (Neon's dashboard sometimes shows postgres:// --
+      # either works, app.py normalizes it either way).
       - key: DATABASE_URL
-        fromDatabase:
-          name: dics-postgres
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: SESSION_COOKIE_SECURE

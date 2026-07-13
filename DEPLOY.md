@@ -1,46 +1,47 @@
-# Deploying DICS AI System to Render (free tier)
+# Deploying DICS AI System to Render + Neon (free tier)
 
-## Why Postgres instead of SQLite
-Render's free web services have an ephemeral filesystem -- any local file
-(SQLite DB, uploaded citizen-report photos) is wiped on every restart or
-redeploy. To stay on the free tier, this deploy uses Render's free managed
-Postgres for the database instead. Uploaded photos in
-instance/uploads/citizen_reports are NOT persisted with this setup -- they
-will be lost on redeploy. If that becomes a problem, either upgrade to a
-paid instance + persistent disk, or wire up external storage (e.g.
-Cloudinary, S3) for uploads.
+## Why this combo
+Render only allows one free-tier Postgres database per workspace, and
+that slot is already used by another project. Rather than touching that
+project or paying for anything, this setup splits the two pieces across
+providers that are each genuinely free with no card required:
+- App hosting: Render free web service
+- Database: Neon free Postgres (separate provider, unlimited by Render's
+  one-free-DB rule since it isn't a Render-managed resource)
 
-## Code changes made for this deploy
-- `app.py`: fixed `postgres://` -> `postgresql://` scheme (SQLAlchemy 1.4+
-  requires the latter; Render's connection strings use the former).
-- `app.py`: legacy SQLite-only migration patches (`migrate_user_table`,
-  `migrate_incident_commander_tables`) now only run when the DB is
-  actually SQLite. On Postgres, `db.create_all()` already builds the
-  full current schema from `models.py`, so these patches (written for
-  upgrading old SQLite files) are unnecessary there.
-- `blueprints/admin.py`: the "Export Backup" admin feature only works
-  against a SQLite file. It now shows a friendly message on Postgres
-  instead of silently producing an empty/broken backup file. Use
-  Render's built-in Postgres backups, or `pg_dump`, instead.
-- `requirements.txt`: added `psycopg2-binary` (Postgres driver) and
-  `gunicorn` (production server).
-- `render.yaml`: new -- provisions free Postgres + free Python web
-  service, wires `DATABASE_URL` automatically, generates `SECRET_KEY`.
+## Neon free tier limits to know
+- 0.5 GB storage, 100 compute-hours/month, permanent (not a trial)
+- Scale-to-zero is mandatory on the free plan: the database sleeps after
+  a few minutes of inactivity and cold-starts (~500ms) on the next query
+- No credit card required
+
+## Code changes made for this deploy (same as the earlier Render+Postgres attempt)
+- `app.py`: fixed `postgres://` -> `postgresql://` scheme.
+- `app.py`: legacy SQLite-only migration patches now only run when the
+  DB is actually SQLite (`db.create_all()` covers Postgres already).
+- `blueprints/admin.py`: SQLite-only "Export Backup" feature now shows a
+  friendly message on Postgres instead of a broken export.
+- `requirements.txt`: added `psycopg2-binary` and `gunicorn`.
+- `render.yaml`: web service only (no `databases:` block this time --
+  the database lives on Neon instead).
 
 ## Steps
-1. Push this repo to GitHub.
-2. Render Dashboard -> New -> Blueprint -> connect your repo.
-3. Render creates `dics-postgres` (free Postgres) and `dics-ai-system`
-   (free web service) and wires them together automatically.
-4. First request triggers `lazy_init()`, which creates all tables via
-   SQLAlchemy and seeds the default admin account + agencies.
-5. Log in and change the default admin password immediately.
+1. Create a free Neon account at neon.tech (no card needed) and create a
+   project. Copy the pooled connection string from the Neon console
+   (Connection Details -- use "Pooled connection").
+2. Push this repo to GitHub.
+3. Render Dashboard -> New -> Blueprint -> connect your repo.
+4. Render will prompt for `DATABASE_URL` (marked `sync: false` in
+   render.yaml) -- paste your Neon connection string here.
+5. Deploy. First request triggers `lazy_init()`, creating all tables via
+   SQLAlchemy and seeding the default admin account + agencies.
+6. Log in and change the default admin password immediately.
 
-## Things to know about the free tier here
-- Free web services spin down after 15 minutes of inactivity; the next
-  request triggers a ~30-60s cold start.
-- Free Postgres on Render expires 30 days after creation unless
-  upgraded -- fine for testing, not for long-term production use.
-- Single gunicorn worker is intentional: the app's APScheduler job and
-  lazy DB init use in-process flags, so multiple workers would each
-  start their own duplicate scheduler.
+## Things to know
+- Free web services on Render spin down after 15 min idle; free Neon DBs
+  scale to zero after idle too. First request after a quiet period may
+  be slow while both wake up.
+- Uploaded citizen-report photos are NOT persisted (Render free has no
+  disk) -- lost on redeploy. Same tradeoff as the earlier Render-only
+  Postgres plan.
+- Single gunicorn worker is intentional -- see comment in render.yaml.

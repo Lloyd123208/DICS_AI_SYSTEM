@@ -1,0 +1,26 @@
+databases:
+  # Render's managed Postgres -- free tier, no card required.
+  - name: dics-postgres
+    databaseName: dics_ai
+    plan: free
+
+services:
+  - type: web
+    name: dics-ai-system
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Single worker: the app starts its APScheduler job and does lazy DB
+    # init from a @app.before_request hook using in-process flags. With
+    # multiple gunicorn workers each process would start its own copy of
+    # the scheduler, duplicating hazard-monitoring jobs.
+    startCommand: gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dics-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"

@@ -62,10 +62,15 @@ instance_dir = os.path.join(base_dir, 'instance')
 os.makedirs(instance_dir, exist_ok=True)
 upload_dir = os.path.join(instance_dir, 'uploads', 'citizen_reports')
 os.makedirs(upload_dir, exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+_database_url = os.environ.get(
     'DATABASE_URL',
     f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
 )
+# Render (and some other providers) hand out connection strings starting
+# with postgres://, but SQLAlchemy 1.4+ requires the postgresql:// scheme.
+if _database_url.startswith('postgres://'):
+    _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = _database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 _secret_key = os.environ.get('SECRET_KEY')
 if not _secret_key:
@@ -385,8 +390,14 @@ def seed_agencies():
 def create_tables():
     with app.app_context():
         db.create_all()
-        migrate_user_table()
-        migrate_incident_commander_tables()
+        if app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite'):
+            # These patch older SQLite databases created before certain
+            # columns/tables existed. On Postgres, db.create_all() above
+            # already builds the full current schema from models.py, so
+            # these legacy sqlite3-specific patches are unnecessary (and
+            # sqlite3.connect() would just touch an unrelated local file).
+            migrate_user_table()
+            migrate_incident_commander_tables()
         create_default_admin()
         seed_agencies()
 
@@ -402,7 +413,8 @@ def lazy_init():
     try:
         with app.app_context():
             db.create_all()
-            migrate_user_table()
+            if app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite'):
+                migrate_user_table()
             create_default_admin()
             seed_agencies()
             app.logger.info('Database initialized successfully')

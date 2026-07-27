@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 {% block title %}Response #{{ response.incident_id }} | Coordinator View | DICS AI{% endblock %}
 
 {% block content %}
@@ -55,13 +56,7 @@
             </div>
             <div class="col-md-3">
                 <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:#94A3B8;margin-bottom:0.3rem;">Priority</div>
-                {% if response.priority_level == 'CRITICAL' %}
-                    <span class="priority-badge priority-critical"><span class="priority-badge-content">🔴 CRITICAL</span></span>
-                {% elif response.priority_level == 'HIGH' %}
-                    <span class="priority-badge priority-high"><span class="priority-badge-content">🟡 HIGH</span></span>
-                {% else %}
-                    <span class="priority-badge priority-medium"><span class="priority-badge-content">🔵 {{ response.priority_level }}</span></span>
-                {% endif %}
+                {{ hz.priority_badge(response.priority_level, label=response.priority_level if response.priority_level not in ['CRITICAL','HIGH'] else none) }}
             </div>
             <div class="col-md-3">
                 <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.07em;color:#94A3B8;margin-bottom:0.3rem;">Started</div>
@@ -95,9 +90,9 @@
                             <div class="d-flex align-items-start justify-content-between gap-2">
                                 <strong class="text-white" style="font-size:0.88rem;">{{ task.title }}</strong>
                                 {% if task.priority == 'CRITICAL' %}
-                                    <span style="padding:0.2em 0.45em;background:rgba(239,68,68,0.2);color:#FCA5A5;border-radius:4px;font-size:0.68em;font-weight:700;white-space:nowrap;">🔴 CRIT</span>
+                                    <span class="priority-badge priority-critical" style="font-size:0.68em;padding:0.2em 0.45em;"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>CRIT</span></span>
                                 {% elif task.priority == 'HIGH' %}
-                                    <span style="padding:0.2em 0.45em;background:rgba(245,158,11,0.2);color:#FCD34D;border-radius:4px;font-size:0.68em;font-weight:700;white-space:nowrap;">🟡 HIGH</span>
+                                    <span class="priority-badge priority-high" style="font-size:0.68em;padding:0.2em 0.45em;"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>HIGH</span></span>
                                 {% endif %}
                             </div>
                             <p class="text-muted mb-2 mt-1" style="font-size:0.78rem;line-height:1.4;">{{ task.description }}</p>

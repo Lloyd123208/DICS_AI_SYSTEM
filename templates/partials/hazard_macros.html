@@ -1,0 +1,42 @@
+{# Shared hazard-type icon + risk-level badge markup.
+   Replaces raw emoji with the existing Bootstrap Icons + badge-low/mod/high
+   classes so hazard styling stays consistent across pages. #}
+
+{% macro hazard_icon_class(hazard_type) -%}
+    {%- set t = (hazard_type or '')|lower -%}
+    {%- if t == 'flood' -%}bi-water
+    {%- elif t == 'landslide' -%}bi-triangle-fill
+    {%- elif t == 'earthquake' -%}bi-broadcast-pin
+    {%- elif t == 'storm' -%}bi-cloud-lightning-rain-fill
+    {%- elif t == 'fire' -%}bi-fire
+    {%- else -%}bi-exclamation-triangle-fill
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro hazard_icon(hazard_type) -%}
+<i class="bi {{ hazard_icon_class(hazard_type) }}" aria-hidden="true"></i>
+{%- endmacro %}
+
+{% macro risk_badge(level) -%}
+    {%- set l = (level or '')|lower -%}
+    {%- if l == 'high' -%}
+    <span class="badge badge-high"><i class="bi bi-record-fill me-1"></i>HIGH</span>
+    {%- elif l == 'moderate' or l == 'mod' -%}
+    <span class="badge badge-mod"><i class="bi bi-record-fill me-1"></i>MOD</span>
+    {%- else -%}
+    <span class="badge badge-low"><i class="bi bi-record-fill me-1"></i>LOW</span>
+    {%- endif -%}
+{%- endmacro %}
+
+{% macro priority_badge(level, label=none) -%}
+    {%- set l = (level or '')|lower -%}
+    {%- if l == 'critical' -%}
+    <span class="priority-badge priority-critical"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>{{ label or 'CRITICAL' }}</span></span>
+    {%- elif l == 'high' -%}
+    <span class="priority-badge priority-high"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>{{ label or 'HIGH' }}</span></span>
+    {%- elif l == 'medium' or l == 'moderate' -%}
+    <span class="priority-badge priority-medium"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>{{ label or 'MEDIUM' }}</span></span>
+    {%- else -%}
+    <span class="priority-badge priority-low"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>{{ label or 'LOW' }}</span></span>
+    {%- endif -%}
+{%- endmacro %}

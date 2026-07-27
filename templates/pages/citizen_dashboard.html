@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}Citizen Dashboard | DICS AI{% endblock %}
 
@@ -132,12 +133,7 @@
                                         <td><strong class="text-info">#{{ incident.id }}</strong></td>
                                         <td>
                                             <div class="d-flex align-items-center gap-2">
-                                                {% if incident.hazard_type|lower == 'flood' %}<span>🌊</span>
-                                                {% elif incident.hazard_type|lower == 'landslide' %}<span>🏔️</span>
-                                                {% elif incident.hazard_type|lower == 'earthquake' %}<span>📍</span>
-                                                {% elif incident.hazard_type|lower == 'storm' %}<span>⛈️</span>
-                                                {% elif incident.hazard_type|lower == 'fire' %}<span>🔥</span>
-                                                {% else %}<span>⚠️</span>{% endif %}
+                                                <span class="text-info">{{ hz.hazard_icon(incident.hazard_type) }}</span>
                                                 <strong>{{ incident.hazard_type|upper }}</strong>
                                             </div>
                                         </td>
@@ -150,13 +146,7 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-nowrap">
-                                            {% if incident.level|lower == 'high' %}
-                                                <span style="display:inline-flex; align-items:center; gap:0.35em; white-space:nowrap; padding: 0.35em 0.65em; background: rgba(239,68,68,0.2); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">🔴 HIGH</span>
-                                            {% elif incident.level|lower == 'moderate' %}
-                                                <span style="display:inline-flex; align-items:center; gap:0.35em; white-space:nowrap; padding: 0.35em 0.65em; background: rgba(245,158,11,0.2); color: #FCD34D; border: 1px solid rgba(245,158,11,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">🟡 MOD</span>
-                                            {% else %}
-                                                <span style="display:inline-flex; align-items:center; gap:0.35em; white-space:nowrap; padding: 0.35em 0.65em; background: rgba(16,185,129,0.2); color: #86EFAC; border: 1px solid rgba(16,185,129,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">🟢 LOW</span>
-                                            {% endif %}
+                                            {{ hz.risk_badge(incident.level) }}
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -165,7 +155,9 @@
                     </div>
                 {% else %}
                     <div class="text-center py-5">
-                        <div style="font-size: 2.5rem; margin-bottom: 1rem;">📋</div>
+                        <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
+                            <i class="bi bi-clipboard-data"></i>
+                        </div>
                         <h5 class="mb-2">No Reports Yet</h5>
                         <p class="text-muted mb-3">You haven't submitted any incident reports.</p>
                         <a href="/citizen-report" class="btn btn-primary-modern btn-modern" style="width: auto; display: inline-block;">

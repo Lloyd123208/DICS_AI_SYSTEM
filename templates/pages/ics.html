@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}ICS | DICS AI{% endblock %}
 
@@ -61,21 +62,21 @@
                 <div class="vstack gap-3">
                     <div style="padding: 1rem; background: rgba(239, 68, 68, 0.08); border-radius: 8px; border-left: 3px solid #EF4444;">
                         <div class="d-flex align-items-center justify-content-between">
-                            <h6 class="mb-1" style="color: #FCA5A5;"><span class="me-2">🏔️</span>Landslide Alert</h6>
+                            <h6 class="mb-1" style="color: #FCA5A5;"><span class="me-2">{{ hz.hazard_icon('landslide') }}</span>Landslide Alert</h6>
                             <span class="badge" style="padding: 0.35em 0.65em; background: rgba(239,68,68,0.2); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">Active</span>
                         </div>
                         <p class="small text-muted mb-0">Southern slope zones — immediate response required</p>
                     </div>
                     <div style="padding: 1rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border-left: 3px solid #F59E0B;">
                         <div class="d-flex align-items-center justify-content-between">
-                            <h6 class="mb-1" style="color: #FCD34D;"><span class="me-2">🌊</span>Flood Watch</h6>
+                            <h6 class="mb-1" style="color: #FCD34D;"><span class="me-2">{{ hz.hazard_icon('flood') }}</span>Flood Watch</h6>
                             <span class="badge" style="padding: 0.35em 0.65em; background: rgba(245,158,11,0.2); color: #FCD34D; border: 1px solid rgba(245,158,11,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">Ongoing</span>
                         </div>
                         <p class="small text-muted mb-0">River levels rising in Lipa and Batangas districts</p>
                     </div>
                     <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
                         <div class="d-flex align-items-center justify-content-between">
-                            <h6 class="mb-1" style="color: #93C5FD;"><span class="me-2">⛈️</span>Storm Advisory</h6>
+                            <h6 class="mb-1" style="color: #93C5FD;"><span class="me-2">{{ hz.hazard_icon('storm') }}</span>Storm Advisory</h6>
                             <span class="badge" style="padding: 0.35em 0.65em; background: rgba(59,130,246,0.2); color: #93C5FD; border: 1px solid rgba(59,130,246,0.5); border-radius: 6px; font-size: 0.75em; font-weight:700;">Monitoring</span>
                         </div>
                         <p class="small text-muted mb-0">Weather system tracked — forecast updating hourly</p>

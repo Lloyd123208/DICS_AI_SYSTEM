@@ -1,5 +1,6 @@
 {# ── Shared Incident Response Header & Tab Nav ──────────────────────────── #}
 {# Usage: {% set active_tab = 'dashboard' %} then {% include 'partials/response_header.html' %} #}
+{% import 'partials/hazard_macros.html' as hz %}
 
 <!-- Response Page Header -->
 <div class="row mb-2">
@@ -60,19 +61,7 @@
                         {% endif %}
 
                         <!-- Priority badge -->
-                        {% if response.priority_level == 'CRITICAL' %}
-                            <span style="padding:0.4em 0.85em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:6px;font-size:0.78rem;font-weight:700;text-transform:uppercase;">
-                                🔴 CRITICAL
-                            </span>
-                        {% elif response.priority_level == 'HIGH' %}
-                            <span style="padding:0.4em 0.85em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.78rem;font-weight:700;text-transform:uppercase;">
-                                🟡 HIGH
-                            </span>
-                        {% else %}
-                            <span style="padding:0.4em 0.85em;background:rgba(59,130,246,0.2);color:#93C5FD;border:1px solid rgba(59,130,246,0.5);border-radius:6px;font-size:0.78rem;font-weight:700;text-transform:uppercase;">
-                                🔵 {{ response.priority_level }}
-                            </span>
-                        {% endif %}
+                        {{ hz.priority_badge(response.priority_level, label=response.priority_level) }}
                     </div>
                 </div>
 

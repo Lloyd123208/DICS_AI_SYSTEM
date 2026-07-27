@@ -3,35 +3,30 @@
 {% block title %}Login | DICS AI{% endblock %}
 
 {% block content %}
-<!-- Wrapper to center content vertically and horizontally -->
-<div class="d-flex align-items-center justify-content-center min-vh-100">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-8 col-lg-5">
-                <div class="card card-custom border-0 shadow-lg rounded-4">
-                    <div class="card-body p-5">
-                        <h2 class="card-title text-center mb-4 fw-bold">DICS-AI LOGIN</h2>
-                        
-                        {% if error %}
-                            <div class="alert alert-danger rounded-3">{{ error }}</div>
-                        {% endif %}
-                        
-                        <form method="post" action="/">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <div class="mb-4">
-                                <label class="form-label fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Username</label>
-                                <input type="text" class="form-control form-control-lg" name="username" placeholder="Enter username" required>
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 0.5px;">Password</label>
-                                <input type="password" class="form-control form-control-lg" name="password" placeholder="Enter password" required>
-                            </div>
-                            <button class="btn btn-brand btn-lg w-100 fw-bold rounded-3 mt-2" type="submit">LOGIN</button>
-                        </form>
-                        
-                        <p class="mt-4 text-center mb-0">Need an account? <a href="/register" class="text-decoration-none fw-semibold">Register now</a></p>
-                    </div>
-                </div>
+<div class="auth-shell">
+    <div class="auth-card">
+        {% include 'partials/auth_header.html' %}
+
+        <div class="auth-body">
+            {% if error %}
+                <div class="alert alert-danger rounded-3">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" action="/">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <label class="auth-label">Username</label>
+                <input type="text" class="form-control" name="username" placeholder="Enter username" required>
+
+                <label class="auth-label">Password</label>
+                <input type="password" class="form-control" name="password" placeholder="Enter password" required>
+
+                <button class="btn btn-auth w-100 mt-1" type="submit">Sign in</button>
+            </form>
+
+            <div class="auth-footer">
+                <span>v2.4 &middot; Region IV-A</span>
+                <a href="/register">Register new account</a>
             </div>
         </div>
     </div>

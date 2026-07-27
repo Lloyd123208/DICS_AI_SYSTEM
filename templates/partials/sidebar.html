@@ -6,8 +6,8 @@
         <i class="bi bi-list"></i>
     </button>
     <div class="mobile-topbar-brand">
-        <i class="bi bi-shield-check"></i>
-        <span>DICS-AI</span>
+        <i class="bi bi-geo-alt-fill"></i>
+        <span>DICS <span style="color:#3b82f6;">AI</span></span>
     </div>
 </div>
 
@@ -19,9 +19,9 @@
         <!-- Sidebar Header -->
         <div class="sidebar-header">
             <div class="sidebar-brand">
-                <div class="sidebar-icon" style="display:flex; align-items:center; justify-content:center;"><i class="bi bi-shield-check"></i></div>
+                <div class="sidebar-icon" style="display:flex; align-items:center; justify-content:center;"><i class="bi bi-geo-alt-fill"></i></div>
                 <div class="sidebar-text-content sidebar-text-show">
-                    <h6 class="mb-0 fw-bold">DICS-AI</h6>
+                    <h6 class="mb-0 fw-bold">DICS <span style="color:#3b82f6;">AI</span></h6>
                     <small class="text-muted-custom">Crisis Response</small>
                 </div>
             </div>
@@ -59,6 +59,8 @@
                     <i class="bi bi-clock-history"></i>
                     <span class="nav-text sidebar-text-show">Incident History</span>
                 </a>
+
+                <div class="menu-subgroup-label sidebar-text-show">Command</div>
                 <a href="/ics" class="sidebar-nav-link {{ 'active' if request.path == '/ics' else '' }}" data-tooltip="Incident Command">
                     <i class="bi bi-clipboard-check"></i>
                     <span class="nav-text sidebar-text-show">Incident Command</span>
@@ -67,6 +69,8 @@
                     <i class="bi bi-file-text"></i>
                     <span class="nav-text sidebar-text-show">ICS Protocols</span>
                 </a>
+
+                <div class="menu-subgroup-label sidebar-text-show">Administration</div>
                 <a href="/admin/users" class="sidebar-nav-link {{ 'active' if request.path == '/admin/users' else '' }}" data-tooltip="User Management">
                     <i class="bi bi-people-fill"></i>
                     <span class="nav-text sidebar-text-show">User Management</span>
@@ -83,7 +87,7 @@
                     <i class="bi bi-cloud-download-fill"></i>
                     <span class="nav-text sidebar-text-show">Database Backup</span>
                 </a>
-                
+
                 {% elif session.role == 'agency_coordinator' %}
                 {# ── AGENCY COORDINATOR LINKS ── #}
                 <a href="/coordinator" class="sidebar-nav-link {{ 'active' if request.path == '/coordinator' else '' }}" data-tooltip="Coordinator Hub">
@@ -335,7 +339,12 @@
 }
 
 .sidebar-icon {
-    font-size: 1.5rem;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    background: #141b2d;
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    font-size: 1rem;
     color: #3b82f6;
     flex-shrink: 0;
 }
@@ -446,6 +455,20 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 1rem;
+}
+
+.menu-subgroup-label {
+    padding-left: 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 0.75rem 0 0.1rem;
+}
+
+.sidebar-container.collapsed .menu-subgroup-label {
+    display: none;
 }
 
 .sidebar-nav {
@@ -636,8 +659,16 @@ body.sidebar-collapsed {
 }
 
 .mobile-topbar-brand i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #141b2d;
+    border: 1px solid rgba(59, 130, 246, 0.4);
     color: #3b82f6;
-    font-size: 1.2rem;
+    font-size: 0.9rem;
 }
 
 .sidebar-overlay {

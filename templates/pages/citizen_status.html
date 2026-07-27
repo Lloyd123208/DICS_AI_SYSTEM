@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}Status Tracking | DICS AI Citizen Portal{% endblock %}
 
@@ -71,19 +72,7 @@
                                             <td><strong class="text-info">#{{ incident.id }}</strong></td>
                                             <td>
                                                 <div class="d-flex align-items-center gap-2">
-                                                    {% if incident.hazard_type|lower == 'flood' %}
-                                                        <span style="font-size: 1.2rem;">🌊</span>
-                                                    {% elif incident.hazard_type|lower == 'landslide' %}
-                                                        <span style="font-size: 1.2rem;">🏔️</span>
-                                                    {% elif incident.hazard_type|lower == 'earthquake' %}
-                                                        <span style="font-size: 1.2rem;">📍</span>
-                                                    {% elif incident.hazard_type|lower == 'storm' %}
-                                                        <span style="font-size: 1.2rem;">⛈️</span>
-                                                    {% elif incident.hazard_type|lower == 'fire' %}
-                                                        <span style="font-size: 1.2rem;">🔥</span>
-                                                    {% else %}
-                                                        <span style="font-size: 1.2rem;">⚠️</span>
-                                                    {% endif %}
+                                                    <span class="text-info" style="font-size: 1.05rem;">{{ hz.hazard_icon(incident.hazard_type) }}</span>
                                                     <strong>{{ incident.hazard_type|upper }}</strong>
                                                 </div>
                                             </td>
@@ -113,13 +102,7 @@
                                             </td>
                                             <td><small class="text-muted">{{ incident.created_at.strftime('%b %d, %Y %I:%M %p') if incident.created_at else 'N/A' }}</small></td>
                                             <td>
-                                                {% if incident.level|lower == 'high' %}
-                                                    <span class="badge-high" style="padding: 0.35em 0.65em; background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1)); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; font-weight: 700; font-size: 0.75em; display: inline-flex; align-items: center; gap: 0.3em;">🔴 HIGH</span>
-                                                {% elif incident.level|lower == 'moderate' %}
-                                                    <span class="badge-mod" style="padding: 0.35em 0.65em; background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.1)); color: #FCD34D; border: 1px solid rgba(245, 158, 11, 0.5); border-radius: 6px; font-weight: 700; font-size: 0.75em; display: inline-flex; align-items: center; gap: 0.3em;">🟡 MOD</span>
-                                                {% else %}
-                                                    <span class="badge-low" style="padding: 0.35em 0.65em; background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.1)); color: #86EFAC; border: 1px solid rgba(16, 185, 129, 0.5); border-radius: 6px; font-weight: 700; font-size: 0.75em; display: inline-flex; align-items: center; gap: 0.3em;">🟢 LOW</span>
-                                                {% endif %}
+                                                {{ hz.risk_badge(incident.level) }}
                                             </td>
                                             <td>
                                                 <a href="{{ url_for('citizen.citizen_report_detail', incident_id=incident.id) }}"
@@ -134,7 +117,9 @@
                         </div>
                     {% else %}
                         <div class="alert alert-enhanced alert-enhanced-info text-center py-5 mb-0">
-                            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📋</div>
+                            <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
+                                <i class="bi bi-clipboard-data"></i>
+                            </div>
                             <h5 class="mb-2">No Reports Yet</h5>
                             <p class="mb-3">You haven't submitted any incident reports.</p>
                             <a href="/citizen-report" class="btn btn-primary-modern btn-modern" style="width: auto; display: inline-block;">

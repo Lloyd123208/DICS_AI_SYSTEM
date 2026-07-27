@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}Incident Commander Center | DICS AI{% endblock %}
 
@@ -121,13 +122,7 @@
                             <td data-label="Location"><span class="text-muted small">{{ response.incident.location or 'Unknown' }}</span></td>
                             <td data-label="Status"><span class="badge-status-active text-uppercase" style="font-size:0.72rem;">{{ response.status }}</span></td>
                             <td data-label="Priority" class="priority-status-cell">
-                                {% if response.priority_level == 'CRITICAL' %}
-                                    <span class="priority-badge priority-critical"><span class="priority-badge-content">🔴 CRITICAL</span></span>
-                                {% elif response.priority_level == 'HIGH' %}
-                                    <span class="priority-badge priority-high"><span class="priority-badge-content">🟡 HIGH</span></span>
-                                {% else %}
-                                    <span class="priority-badge priority-medium"><span class="priority-badge-content">🔵 {{ response.priority_level }}</span></span>
-                                {% endif %}
+                                {{ hz.priority_badge(response.priority_level, label=response.priority_level if response.priority_level not in ['CRITICAL','HIGH'] else none) }}
                             </td>
                             <td data-label="Started" class="table-hide-tablet"><span class="text-muted small">{{ response.started_at.strftime('%b %d, %Y %H:%M') }}</span></td>
                             <td data-label="Action" class="text-center">
@@ -187,11 +182,7 @@
                                 </td>
                                 <td><span class="text-muted small">{{ incident.location or 'Unknown' }}</span></td>
                                 <td>
-                                    {% if incident.level == 'CRITICAL' %}
-                                        <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🔴 CRITICAL</span>
-                                    {% else %}
-                                        <span style="padding:0.3em 0.6em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🟡 {{ incident.level }}</span>
-                                    {% endif %}
+                                    {{ hz.priority_badge(incident.level, label=incident.level if incident.level != 'CRITICAL' else none) }}
                                 </td>
                                 <td><strong class="text-info">{{ "%.2f"|format(incident.score|float(0)) }}%</strong></td>
                                 <td>

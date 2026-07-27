@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}Incident Monitoring | DICS AI{% endblock %}
 
@@ -164,13 +165,7 @@
                             </td>
                             <td><span class="text-muted small">{{ incident.location or 'Unknown' }}</span></td>
                             <td>
-                                {% if incident.level == 'CRITICAL' %}
-                                    <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🔴 CRITICAL</span>
-                                {% elif incident.level == 'HIGH' %}
-                                    <span style="padding:0.3em 0.6em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🟡 HIGH</span>
-                                {% else %}
-                                    <span style="padding:0.3em 0.6em;background:rgba(59,130,246,0.2);color:#93C5FD;border:1px solid rgba(59,130,246,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">🔵 {{ incident.level }}</span>
-                                {% endif %}
+                                {{ hz.priority_badge(incident.level, label=incident.level) }}
                             </td>
                             <td><strong class="text-info">{{ "%.2f"|format(incident.score|float(0)) }}%</strong></td>
                             <td>

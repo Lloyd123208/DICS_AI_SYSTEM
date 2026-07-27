@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 {% block title %}Agency Coordinator Hub | DICS AI{% endblock %}
 
 {% block content %}
@@ -141,15 +142,7 @@
                                         <span class="text-muted" style="font-size:0.75rem;">Response #{{ task.incident_response.incident_id }}</span>
                                     </td>
                                     <td data-label="Priority" class="priority-status-cell">
-                                        {% if task.priority == 'CRITICAL' %}
-                                            <span class="priority-badge priority-critical"><span class="priority-badge-content">🔴 CRIT</span></span>
-                                        {% elif task.priority == 'HIGH' %}
-                                            <span class="priority-badge priority-high"><span class="priority-badge-content">🟡 HIGH</span></span>
-                                        {% elif task.priority == 'MEDIUM' %}
-                                            <span class="priority-badge priority-medium"><span class="priority-badge-content">🔵 MED</span></span>
-                                        {% else %}
-                                            <span class="priority-badge priority-low"><span class="priority-badge-content">🟢 LOW</span></span>
-                                        {% endif %}
+                                        {{ hz.priority_badge(task.priority, label={'CRITICAL':'CRIT','HIGH':'HIGH','MEDIUM':'MED'}.get(task.priority, 'LOW')) }}
                                     </td>
                                     <td data-label="Status">
                                         {% if task.status == 'COMPLETED' %}

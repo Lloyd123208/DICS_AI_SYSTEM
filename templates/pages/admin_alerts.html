@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/hazard_macros.html' as hz %}
 
 {% block title %}Incident Verification | DICS AI{% endblock %}
 
@@ -90,14 +91,9 @@
 
                         <!-- Hazard icon -->
                         <div style="width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;
-                            background:{% if incident.level and incident.level|lower == 'critical' %}rgba(239,68,68,0.12){% elif incident.level and incident.level|lower == 'high' %}rgba(249,115,22,0.12){% elif incident.level and incident.level|lower == 'moderate' %}rgba(245,158,11,0.12){% else %}rgba(16,185,129,0.12){% endif %};">
-                            {% if incident.hazard_type|lower == 'storm' %}⛈️
-                            {% elif incident.hazard_type|lower == 'earthquake' %}📍
-                            {% elif incident.hazard_type|lower == 'flood' %}🌊
-                            {% elif incident.hazard_type|lower == 'landslide' %}🏔️
-                            {% elif incident.hazard_type|lower == 'fire' %}🔥
-                            {% elif incident.hazard_type|lower == 'emergency' %}🆘
-                            {% else %}⚠️{% endif %}
+                            background:{% if incident.level and incident.level|lower == 'critical' %}rgba(239,68,68,0.12){% elif incident.level and incident.level|lower == 'high' %}rgba(249,115,22,0.12){% elif incident.level and incident.level|lower == 'moderate' %}rgba(245,158,11,0.12){% else %}rgba(16,185,129,0.12){% endif %};
+                            color:{% if incident.level and incident.level|lower == 'critical' %}#ef4444{% elif incident.level and incident.level|lower == 'high' %}#f97316{% elif incident.level and incident.level|lower == 'moderate' %}#f59e0b{% else %}#10b981{% endif %};">
+                            {{ hz.hazard_icon(incident.hazard_type) }}
                         </div>
 
                         <!-- Incident info -->
@@ -250,7 +246,9 @@
         {% else %}
         <div class="card card-custom">
             <div class="card-body text-center py-5">
-                <div style="font-size:2.5rem;margin-bottom:1rem;opacity:.3;">🛡️</div>
+                <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
+                    <i class="bi bi-shield-check"></i>
+                </div>
                 <div class="text-muted fw-semibold mb-1">No incidents to review</div>
                 <div class="text-muted" style="font-size:.82rem;">Incidents submitted by citizens and the AI scheduler will appear here.</div>
             </div>

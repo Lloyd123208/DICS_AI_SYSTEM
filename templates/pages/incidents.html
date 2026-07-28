@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}Incident History | DICS AI{% endblock %}
 
@@ -44,7 +45,7 @@
                     <div class="stat-value">{{ incidents|selectattr('alert')|list|length }}</div>
                     <div class="stat-description">Incidents that triggered alerts</div>
                 </div>
-                <div class="icon-badge" style="background: rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3);">
+                <div class="icon-badge icon-badge-danger">
                     <i class="bi bi-exclamation-octagon-fill"></i>
                 </div>
             </div>
@@ -83,7 +84,7 @@
 
         {% if incidents %}
             <div class="table-responsive">
-                <table class="table table-enhanced align-middle mb-0">
+                <table class="table table-enhanced table-mobile-stack align-middle mb-0">
                     <thead>
                         <tr>
                             <th class="text-nowrap">Date &amp; Time</th>
@@ -97,18 +98,18 @@
                     <tbody>
                         {% for incident in incidents %}
                             <tr>
-                                <td class="text-nowrap"><small class="text-muted">{{ incident.created_at.strftime('%b %d, %Y %I:%M %p') }}</small></td>
-                                <td>
+                                <td data-label="Date & Time" class="text-nowrap"><small class="text-muted">{{ incident.created_at.strftime('%b %d, %Y %I:%M %p') }}</small></td>
+                                <td data-label="Hazard">
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="text-info">{{ hz.hazard_icon(incident.hazard_type) }}</span>
                                         <strong>{{ incident.hazard_type|upper }}</strong>
                                     </div>
                                 </td>
-                                <td class="text-nowrap">
+                                <td data-label="Risk Level" class="text-nowrap">
                                     {{ hz.risk_badge(incident.level) }}
                                 </td>
-                                <td><strong class="text-info">{{ '%.1f'|format(incident.score|float(0)) }}%</strong></td>
-                                <td>
+                                <td data-label="Score"><strong class="text-info">{{ '%.1f'|format(incident.score|float(0)) }}%</strong></td>
+                                <td data-label="Alert">
                                     {% if incident.alert %}
                                         <span class="badge badge-status-active">
                                             <i class="bi bi-exclamation-circle-fill me-1"></i>Yes
@@ -119,19 +120,15 @@
                                         </span>
                                     {% endif %}
                                 </td>
-                                <td><span class="text-muted small">{{ incident.message }}</span></td>
+                                <td data-label="Message"><span class="text-muted small">{{ incident.message }}</span></td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <div class="alert alert-enhanced alert-enhanced-info text-center py-5 mb-0">
-                <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
-                    <i class="bi bi-clipboard-data"></i>
-                </div>
-                <h5 class="mb-2">No Incidents Recorded</h5>
-                <p class="mb-3">No hazard predictions have been saved yet.</p>
+            <div class="alert alert-enhanced alert-enhanced-info mb-0">
+                {{ es.render('bi-clipboard-data', 'No Incidents Recorded', subtitle='No hazard predictions have been saved yet.') }}
             </div>
         {% endif %}
     </div>

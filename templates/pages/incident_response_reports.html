@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/empty_state.html' as es %}
 {% block title %}Response #{{ response.incident_id }} SitReps | DICS AI{% endblock %}
 
 {% block content %}
@@ -65,11 +66,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"><i class="bi bi-inbox"></i></div>
-                        <h5 class="mb-1">No SitReps Yet</h5>
-                        <p class="text-muted mb-0">No situation reports have been submitted for this incident.</p>
-                    </div>
+                    {{ es.render('bi-inbox', 'No SitReps Yet', subtitle='No situation reports have been submitted for this incident.') }}
                 {% endif %}
             </div>
         </div>

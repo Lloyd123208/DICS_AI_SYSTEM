@@ -1,7 +1,28 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from datetime import datetime
 
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, "connect")
+def _enable_sqlite_foreign_keys(dbapi_connection, connection_record):
+    """SQLite does not enforce foreign key constraints by default. Without
+    this, deleting a row (including via raw SQL or a database tool) can
+    silently leave dependent rows pointing at nothing -- e.g. an
+    IncidentResponse whose incident_id no longer matches any Incident. That
+    orphaned state is what caused 500s/404s when a commander opened an
+    incident response tied to a missing incident. Turning this on makes the
+    ondelete='CASCADE' rules below actually apply."""
+    try:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+    except Exception:
+        # Non-SQLite engines (e.g. Postgres in production) don't need this
+        # and don't support this pragma; ignore quietly.
+        pass
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,14 +85,14 @@ class Incident(db.Model):
     verified_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     reported_by = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    response = db.relationship('IncidentResponse', backref='incident', lazy=True, uselist=False)
+    response = db.relationship('IncidentResponse', backref='incident', lazy=True, uselist=False, cascade='all, delete-orphan')
     verifier = db.relationship('User', foreign_keys=[verified_by_id], backref='verified_incidents')
 
 
 class IncidentResponse(db.Model):
     """Active incident response coordination"""
     id = db.Column(db.Integer, primary_key=True)
-    incident_id = db.Column(db.Integer, db.ForeignKey('incident.id'), nullable=False)
+    incident_id = db.Column(db.Integer, db.ForeignKey('incident.id', ondelete='CASCADE'), nullable=False)
     commander_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(db.String(20), default='ACTIVE')  # ACTIVE, MONITORING, RESOLVED, CLOSED
     situation_summary = db.Column(db.Text, nullable=True)
@@ -90,7 +111,7 @@ class IncidentResponse(db.Model):
 class Task(db.Model):
     """Incident response tasks assigned to agencies"""
     id = db.Column(db.Integer, primary_key=True)
-    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False)
+    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id', ondelete='CASCADE'), nullable=False)
     assigned_to_agency = db.Column(db.String(150), nullable=False)
     assigned_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
@@ -107,7 +128,7 @@ class Task(db.Model):
 class IncidentMessage(db.Model):
     """Unified inter-role incident communications log."""
     id = db.Column(db.Integer, primary_key=True)
-    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False)
+    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id', ondelete='CASCADE'), nullable=False)
     reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -126,20 +147,20 @@ class IncidentMessage(db.Model):
 class PostIncidentReport(db.Model):
     """Structured lessons learned and feedback after an incident response closes."""
     id = db.Column(db.Integer, primary_key=True)
-    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False, unique=True)
+    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id', ondelete='CASCADE'), nullable=False, unique=True)
     lessons_learned = db.Column(db.Text, nullable=True)
     response_rating = db.Column(db.Integer, nullable=True)
     recommendations = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    incident_response = db.relationship('IncidentResponse', backref='post_incident_report', uselist=False)
+    incident_response = db.relationship('IncidentResponse', backref=db.backref('post_incident_report', cascade='all, delete-orphan'), uselist=False)
 
 
 class Resource(db.Model):
     """Resource allocation tracking"""
     id = db.Column(db.Integer, primary_key=True)
-    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id'), nullable=False)
+    incident_response_id = db.Column(db.Integer, db.ForeignKey('incident_response.id', ondelete='CASCADE'), nullable=False)
     resource_type = db.Column(db.String(100), nullable=False)  # Personnel, Equipment, Vehicles, Supplies, etc.
     agency = db.Column(db.String(150), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)

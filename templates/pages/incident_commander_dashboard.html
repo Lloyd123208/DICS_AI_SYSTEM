@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}Incident Commander Center | DICS AI{% endblock %}
 
@@ -136,11 +137,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="text-center py-5">
-                <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.4;"><i class="bi bi-shield-check"></i></div>
-                <h5 class="mb-1">No Active Responses</h5>
-                <p class="text-muted mb-0">All clear — no incidents currently being managed.</p>
-            </div>
+            {{ es.render('bi-shield-check', 'No Active Responses', subtitle='All clear — no incidents currently being managed.', variant='success') }}
         {% endif %}
     </div>
 </div>
@@ -209,11 +206,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="text-center py-5">
-                <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.4;"><i class="bi bi-check-circle"></i></div>
-                <h5 class="mb-1">No Critical Incidents Pending</h5>
-                <p class="text-muted mb-0">All critical incidents have active responses.</p>
-            </div>
+            {{ es.render('bi-check-circle', 'No Critical Incidents Pending', subtitle='All critical incidents have active responses.', variant='success') }}
         {% endif %}
     </div>
 </div>

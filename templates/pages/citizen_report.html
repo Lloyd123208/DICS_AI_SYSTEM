@@ -72,6 +72,7 @@
                                     <option value="volcanic">Volcanic Activity</option>
                                     <option value="other">Other Emergency</option>
                                 </select>
+                                <div class="invalid-feedback">Please select the type of incident.</div>
                             </div>
 
                             <div class="form-pair-field">
@@ -84,6 +85,7 @@
                                     <option value="moderate">Moderate &ndash; Significant impact</option>
                                     <option value="high">High &ndash; Critical situation</option>
                                 </select>
+                                <div class="invalid-feedback">Please select a severity level.</div>
                             </div>
                         </div>
 
@@ -93,6 +95,7 @@
                             </label>
                             <input type="text" class="form-control" id="location" name="location" 
                                    placeholder="e.g., Barangay Santo Tomas" required>
+                            <div class="invalid-feedback">Please enter your barangay or area.</div>
                         </div>
 
                         <div class="mb-4">
@@ -101,6 +104,7 @@
                             </label>
                             <textarea class="form-control" id="description" name="description" rows="5" 
                                       placeholder="Describe what you're experiencing in detail..." required></textarea>
+                            <div class="invalid-feedback">Please describe what's happening.</div>
                             <small class="text-muted d-block mt-2">Be as specific as possible to help authorities respond effectively</small>
                         </div>
 
@@ -172,6 +176,7 @@
                                    placeholder="09XXXXXXXXX" pattern="^(09\d{9}|\+639\d{9})$" inputmode="numeric"
                                    oninput="this.value = this.value.replace(/[^0-9+]/g, '')" 
                                    maxlength="13" required>
+                            <div class="invalid-feedback">Enter a valid Philippine number: 09XXXXXXXXX or +639XXXXXXXXX.</div>
                             <small class="text-muted d-block mt-2">Format: 09XXXXXXXXX or +639XXXXXXXXX (Philippine numbers only)</small>
                         </div>
 

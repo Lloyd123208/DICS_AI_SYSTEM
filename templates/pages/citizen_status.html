@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}Status Tracking | DICS AI Citizen Portal{% endblock %}
 
@@ -54,7 +55,7 @@
 
                     {% if incidents %}
                         <div class="table-responsive">
-                            <table class="table table-enhanced align-middle mb-0">
+                            <table class="table table-enhanced table-mobile-stack align-middle mb-0">
                                 <thead>
                                     <tr>
                                         <th style="width: 8%;">Report ID</th>
@@ -69,15 +70,15 @@
                                 <tbody>
                                     {% for incident in incidents %}
                                         <tr>
-                                            <td><strong class="text-info">#{{ incident.id }}</strong></td>
-                                            <td>
+                                            <td data-label="Report ID"><strong class="text-info">#{{ incident.id }}</strong></td>
+                                            <td data-label="Incident Type">
                                                 <div class="d-flex align-items-center gap-2">
                                                     <span class="text-info" style="font-size: 1.05rem;">{{ hz.hazard_icon(incident.hazard_type) }}</span>
                                                     <strong>{{ incident.hazard_type|upper }}</strong>
                                                 </div>
                                             </td>
-                                            <td><span class="text-muted">{{ incident.location if incident.location else 'N/A' }}</span></td>
-                                            <td>
+                                            <td data-label="Location"><span class="text-muted">{{ incident.location if incident.location else 'N/A' }}</span></td>
+                                            <td data-label="Status">
                                                 {% if incident.status == 'VERIFIED' %}
                                                     <span class="badge" style="background:rgba(16,185,129,0.15);color:#86EFAC;border:1px solid rgba(16,185,129,0.4);border-radius:6px;padding:.35em .7em;font-size:.75em;">
                                                         <i class="bi bi-check-circle-fill me-1"></i>Verified — Awaiting Response
@@ -100,11 +101,11 @@
                                                     </span>
                                                 {% endif %}
                                             </td>
-                                            <td><small class="text-muted">{{ incident.created_at.strftime('%b %d, %Y %I:%M %p') if incident.created_at else 'N/A' }}</small></td>
-                                            <td>
+                                            <td data-label="Submitted"><small class="text-muted">{{ incident.created_at.strftime('%b %d, %Y %I:%M %p') if incident.created_at else 'N/A' }}</small></td>
+                                            <td data-label="Risk">
                                                 {{ hz.risk_badge(incident.level) }}
                                             </td>
-                                            <td>
+                                            <td data-label="Details">
                                                 <a href="{{ url_for('citizen.citizen_report_detail', incident_id=incident.id) }}"
                                                    class="btn btn-outline-info btn-sm">
                                                     <i class="bi bi-eye me-1"></i>View
@@ -116,15 +117,8 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-enhanced alert-enhanced-info text-center py-5 mb-0">
-                            <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
-                                <i class="bi bi-clipboard-data"></i>
-                            </div>
-                            <h5 class="mb-2">No Reports Yet</h5>
-                            <p class="mb-3">You haven't submitted any incident reports.</p>
-                            <a href="/citizen-report" class="btn btn-primary-modern btn-modern" style="width: auto; display: inline-block;">
-                                <i class="bi bi-plus-circle me-2"></i>Submit Your First Report
-                            </a>
+                        <div class="alert alert-enhanced alert-enhanced-info mb-0">
+                            {{ es.render('bi-clipboard-data', 'No Reports Yet', subtitle="You haven't submitted any incident reports.", cta_text='Submit Your First Report', cta_href='/citizen-report') }}
                         </div>
                     {% endif %}
                 </div>
@@ -142,19 +136,19 @@
                                 <h5 class="mb-0">How It Works</h5>
                             </div>
                             <div class="vstack gap-3">
-                                <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                                <div class="info-tile info-tile-primary">
                                     <h6 class="mb-2" style="color: #93C5FD;">
                                         <i class="bi bi-pencil-square me-2"></i>Submit Report
                                     </h6>
                                     <p class="small mb-0">Describe the emergency incident in detail with location and impact</p>
                                 </div>
-                                <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                                <div class="info-tile info-tile-primary">
                                     <h6 class="mb-2" style="color: #93C5FD;">
                                         <i class="bi bi-shield-check me-2"></i>Authorities Review
                                     </h6>
                                     <p class="small mb-0">Your report is sent to emergency response teams for verification</p>
                                 </div>
-                                <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                                <div class="info-tile info-tile-primary">
                                     <h6 class="mb-2" style="color: #93C5FD;">
                                         <i class="bi bi-bell me-2"></i>Get Updates
                                     </h6>
@@ -174,19 +168,19 @@
                                 <h5 class="mb-0">Status Guide</h5>
                             </div>
                             <div class="vstack gap-3">
-                                <div style="padding: 1rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border-left: 3px solid #F59E0B;">
+                                <div class="info-tile info-tile-warning">
                                     <h6 class="mb-2" style="color: #FCD34D;">
                                         <i class="bi bi-hourglass-split me-2"></i>Pending
                                     </h6>
                                     <p class="small mb-0">Waiting for authority confirmation and assessment</p>
                                 </div>
-                                <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                                <div class="info-tile info-tile-primary">
                                     <h6 class="mb-2" style="color: #93C5FD;">
                                         <i class="bi bi-exclamation-circle-fill me-2"></i>Active Alert
                                     </h6>
                                     <p class="small mb-0">Authorities are actively responding to the incident</p>
                                 </div>
-                                <div style="padding: 1rem; background: rgba(16, 185, 129, 0.08); border-radius: 8px; border-left: 3px solid #10B981;">
+                                <div class="info-tile info-tile-success">
                                     <h6 class="mb-2" style="color: #86EFAC;">
                                         <i class="bi bi-check-circle-fill me-2"></i>Resolved
                                     </h6>

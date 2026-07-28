@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}Incident Verification | DICS AI{% endblock %}
 
@@ -245,12 +246,8 @@
 
         {% else %}
         <div class="card card-custom">
-            <div class="card-body text-center py-5">
-                <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
-                    <i class="bi bi-shield-check"></i>
-                </div>
-                <div class="text-muted fw-semibold mb-1">No incidents to review</div>
-                <div class="text-muted" style="font-size:.82rem;">Incidents submitted by citizens and the AI scheduler will appear here.</div>
+            <div class="card-body">
+                {{ es.render('bi-shield-check', 'No incidents to review', subtitle='Incidents submitted by citizens and the AI scheduler will appear here.') }}
             </div>
         </div>
         {% endif %}

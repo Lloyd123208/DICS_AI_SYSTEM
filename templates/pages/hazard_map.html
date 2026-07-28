@@ -83,7 +83,13 @@
                             </div>
                         </div>
                     </div>
-                    <div id="map" class="rounded" style="height: 520px;"></div>
+                    <div class="map-container-wrap">
+                        <div id="map" class="rounded" style="height: 520px;"></div>
+                        <div id="mapLoadingPill" class="map-loading-pill">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            Loading incident markers&hellip;
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -147,6 +153,10 @@ function loadMarkers() {
         .catch(() => {
             markersData = [];
             renderMarkers(activeFilter);
+        })
+        .finally(() => {
+            const pill = document.getElementById('mapLoadingPill');
+            if (pill) pill.classList.add('is-hidden');
         });
 }
 

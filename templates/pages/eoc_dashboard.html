@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}EOC Command Dashboard | DICS AI{% endblock %}
 
@@ -137,11 +138,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.4;"><i class="bi bi-shield-check"></i></div>
-                        <h5 class="mb-1">No Active Responses</h5>
-                        <p class="text-muted mb-0">All clear — no incidents currently being managed anywhere in the region.</p>
-                    </div>
+                    {{ es.render('bi-shield-check', 'No Active Responses', subtitle='All clear — no incidents currently being managed anywhere in the region.', variant='success') }}
                 {% endif %}
             </div>
         </div>
@@ -237,11 +234,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="text-center py-5">
-                <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.4;"><i class="bi bi-check-circle"></i></div>
-                <h5 class="mb-1">No Critical Incidents</h5>
-                <p class="text-muted mb-0">Nothing at CRITICAL or HIGH risk level right now.</p>
-            </div>
+            {{ es.render('bi-check-circle', 'No Critical Incidents', subtitle='Nothing at CRITICAL or HIGH risk level right now.', variant='success') }}
         {% endif %}
     </div>
 </div>
@@ -291,11 +284,7 @@
                 </table>
             </div>
         {% else %}
-            <div class="text-center py-5">
-                <div style="font-size:2.5rem;margin-bottom:1rem;opacity:0.4;"><i class="bi bi-inbox"></i></div>
-                <h5 class="mb-1">No Incidents Logged Yet</h5>
-                <p class="text-muted mb-0">Incoming reports and sensor data will appear here in real time.</p>
-            </div>
+            {{ es.render('bi-inbox', 'No Incidents Logged Yet', subtitle='Incoming reports and sensor data will appear here in real time.') }}
         {% endif %}
     </div>
 </div>

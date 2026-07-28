@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/empty_state.html' as es %}
 {% block title %}Comm Center | Agency Coordinator | DICS AI{% endblock %}
 
 {% block content %}
@@ -75,11 +76,7 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="text-center py-5">
-                            <div style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"><i class="bi bi-chat-dots"></i></div>
-                            <h5 class="mb-1">No Communications Yet</h5>
-                            <p class="text-muted mb-0">Situation reports and alerts will appear here.</p>
-                        </div>
+                        {{ es.render('bi-chat-dots', 'No Communications Yet', subtitle='Situation reports and alerts will appear here.') }}
                     {% endif %}
                 </div>
             </div>

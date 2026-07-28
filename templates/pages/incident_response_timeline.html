@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/empty_state.html' as es %}
 {% block title %}Response #{{ response.incident_id }} Timeline | DICS AI{% endblock %}
 
 {% block content %}
@@ -44,11 +45,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"><i class="bi bi-clock-history"></i></div>
-                        <h5 class="mb-1">No Events Logged</h5>
-                        <p class="text-muted mb-0">No tactical events have been recorded for this response yet.</p>
-                    </div>
+                    {{ es.render('bi-clock-history', 'No Events Logged', subtitle='No tactical events have been recorded for this response yet.') }}
                 {% endif %}
             </div>
         </div>

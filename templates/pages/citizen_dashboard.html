@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 
 {% block title %}Citizen Dashboard | DICS AI{% endblock %}
 
@@ -44,7 +45,7 @@
                     <div class="stat-value">{{ alert_count }}</div>
                     <div class="stat-description">Alerts in your area</div>
                 </div>
-                <div class="icon-badge" style="background: rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3);">
+                <div class="icon-badge icon-badge-danger">
                     <i class="bi bi-exclamation-triangle-fill"></i>
                 </div>
             </div>
@@ -117,7 +118,7 @@
                 </div>
                 {% if incidents %}
                     <div class="table-responsive">
-                        <table class="table table-enhanced align-middle mb-0">
+                        <table class="table table-enhanced table-mobile-stack align-middle mb-0">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -130,22 +131,22 @@
                             <tbody>
                                 {% for incident in incidents %}
                                     <tr>
-                                        <td><strong class="text-info">#{{ incident.id }}</strong></td>
-                                        <td>
+                                        <td data-label="ID"><strong class="text-info">#{{ incident.id }}</strong></td>
+                                        <td data-label="Incident Type">
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="text-info">{{ hz.hazard_icon(incident.hazard_type) }}</span>
                                                 <strong>{{ incident.hazard_type|upper }}</strong>
                                             </div>
                                         </td>
-                                        <td class="text-nowrap"><span class="text-muted small">{{ incident.location if incident.location else 'N/A' }}</span></td>
-                                        <td>
+                                        <td data-label="Location" class="text-nowrap"><span class="text-muted small">{{ incident.location if incident.location else 'N/A' }}</span></td>
+                                        <td data-label="Status">
                                             {% if incident.alert %}
                                                 <span class="badge badge-status-active"><i class="bi bi-exclamation-circle-fill me-1"></i>Active Alert</span>
                                             {% else %}
                                                 <span class="badge badge-status-pending"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-nowrap">
+                                        <td data-label="Risk Level" class="text-nowrap">
                                             {{ hz.risk_badge(incident.level) }}
                                         </td>
                                     </tr>
@@ -154,16 +155,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div class="icon-badge icon-badge-primary mx-auto mb-3" style="width:56px;height:56px;font-size:1.5rem;">
-                            <i class="bi bi-clipboard-data"></i>
-                        </div>
-                        <h5 class="mb-2">No Reports Yet</h5>
-                        <p class="text-muted mb-3">You haven't submitted any incident reports.</p>
-                        <a href="/citizen-report" class="btn btn-primary-modern btn-modern" style="width: auto; display: inline-block;">
-                            <i class="bi bi-plus-circle me-2"></i>Submit Your First Report
-                        </a>
-                    </div>
+                    {{ es.render('bi-clipboard-data', 'No Reports Yet', subtitle="You haven't submitted any incident reports.", cta_text='Submit Your First Report', cta_href='/citizen-report') }}
                 {% endif %}
             </div>
         </div>
@@ -175,7 +167,7 @@
     <div class="col-md-4">
         <div class="card card-custom card-gradient-danger h-100">
             <div class="card-body p-3 d-flex align-items-start gap-3">
-                <div class="icon-badge" style="background: rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3); flex-shrink:0;">
+                <div class="icon-badge icon-badge-danger" style="flex-shrink:0;">
                     <i class="bi bi-telephone-fill"></i>
                 </div>
                 <div>

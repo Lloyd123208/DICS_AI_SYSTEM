@@ -1,4 +1,5 @@
 {% extends 'pages/base.html' %}
+{% import 'partials/empty_state.html' as es %}
 {% block title %}Response #{{ response.incident_id }} Resources | DICS AI{% endblock %}
 
 {% block content %}
@@ -92,11 +93,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"><i class="bi bi-boxes"></i></div>
-                        <h5 class="mb-1">No Resources Allocated</h5>
-                        <p class="text-muted mb-0">No tactical resources have been allocated yet.</p>
-                    </div>
+                    {{ es.render('bi-boxes', 'No Resources Allocated', subtitle='No tactical resources have been allocated yet.') }}
                 {% endif %}
             </div>
         </div>
@@ -135,18 +132,13 @@
                             <label class="form-label">Provider Agency <span class="text-danger">*</span></label>
                             <select name="agency" class="form-select" required>
                                 <option value="">— Select Source Agency —</option>
-                                <option value="Fire Department">Fire Department</option>
-                                <option value="Emergency Management">Emergency Management</option>
-                                <option value="Police Department">Police Department</option>
-                                <option value="Medical Services">Medical Services</option>
-                                <option value="Search & Rescue">Search & Rescue</option>
-                                <option value="Public Works">Public Works</option>
-                                <option value="Environmental Protection">Environmental Protection</option>
-                                <option value="Transportation Authority">Transportation Authority</option>
-                                <option value="National Guard">National Guard</option>
-                                <option value="Red Cross">Red Cross</option>
-                                <option value="Other">Other Agency/NGO</option>
+                                {% for a in agencies %}
+                                <option value="{{ a.name }}">{{ a.name }}</option>
+                                {% endfor %}
                             </select>
+                            {% if not agencies %}
+                                <small class="text-warning d-block mt-1">No agencies are registered yet. Contact an administrator to add agencies first.</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Quantity <span class="text-danger">*</span></label>

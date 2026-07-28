@@ -1,5 +1,7 @@
 import os
+import glob
 import sqlite3
+from datetime import datetime
 from flask import Flask, current_app, render_template, request, redirect, url_for, session, flash, send_from_directory
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -567,27 +569,37 @@ def dashboard():
         return redirect(url_for('coordinator.coordinator_dashboard'))
 
     # Only admins reach this point; every other role is redirected above.
-    # System-wide view, not scoped to a single user's own reports.
-    incidents = Incident.query.order_by(Incident.created_at.desc()).limit(5).all()
-    total_incidents = Incident.query.count()
-    alert_count = Incident.query.filter_by(alert=True).count()
-    latest_incident = Incident.query.order_by(Incident.created_at.desc()).first()
-    latest_risk_score = latest_incident.score if latest_incident else 0
+    # Administration-focused view: account health and backup status only.
+    # Incident verification, commander assignment, and operations monitoring
+    # are owned by EOC staff; hazard/incident field operations live with
+    # EOC staff, incident commander, and coordinator roles.
+    total_users = User.query.count()
+    disabled_users = User.query.filter_by(is_disabled=True).count()
+    active_users = total_users - disabled_users
 
-    earthquake_data = get_earthquake_data()
-    latest_earthquake_magnitude = 0
-    if earthquake_data and len(earthquake_data) > 0:
-        latest_earthquake_magnitude = earthquake_data[0].get('magnitude', 0)
+    role_counts = {}
+    for role in ['admin', 'agency_coordinator', 'incident_commander', 'eoc_staff', 'field_responder', 'citizen']:
+        role_counts[role] = User.query.filter_by(role=role).count()
+
+    recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+
+    backup_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'instance')
+    backup_files = sorted(glob.glob(os.path.join(backup_dir, 'dics_ai_backup_*.db')), reverse=True)
+    last_backup_time = None
+    if backup_files:
+        last_backup_time = datetime.fromtimestamp(os.path.getmtime(backup_files[0]))
 
     return render_template(
         'pages/dashboard.html',
         username=user.username,
         user_role=user.role,
-        incidents=incidents,
-        total_incidents=total_incidents,
-        alert_count=alert_count,
-        latest_risk_score=latest_risk_score,
-        latest_earthquake_magnitude=latest_earthquake_magnitude,
+        total_users=total_users,
+        active_users=active_users,
+        disabled_users=disabled_users,
+        role_counts=role_counts,
+        recent_users=recent_users,
+        last_backup_time=last_backup_time,
+        backup_count=len(backup_files),
         weather_data=None,
         earthquake_data=None,
     )

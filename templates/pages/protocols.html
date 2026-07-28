@@ -68,19 +68,19 @@
                     <h5 class="mb-0">Communication Protocol</h5>
                 </div>
                 <div class="vstack gap-3">
-                    <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <div class="info-tile info-tile-primary">
                         <h6 class="mb-1" style="color: #93C5FD;">
                             <i class="bi bi-1-circle me-2"></i>Establish Command
                         </h6>
                         <p class="small text-muted mb-0">Set up command post and open incident logs for all response activities.</p>
                     </div>
-                    <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <div class="info-tile info-tile-primary">
                         <h6 class="mb-1" style="color: #93C5FD;">
                             <i class="bi bi-2-circle me-2"></i>Notify Stakeholders
                         </h6>
                         <p class="small text-muted mb-0">Alert response teams, community leaders, and relevant authorities immediately.</p>
                     </div>
-                    <div style="padding: 1rem; background: rgba(59, 130, 246, 0.08); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <div class="info-tile info-tile-primary">
                         <h6 class="mb-1" style="color: #93C5FD;">
                             <i class="bi bi-3-circle me-2"></i>Broadcast Alerts
                         </h6>
@@ -101,19 +101,19 @@
                     <h5 class="mb-0">Coordination Steps</h5>
                 </div>
                 <div class="vstack gap-3">
-                    <div style="padding: 1rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border-left: 3px solid #F59E0B;">
+                    <div class="info-tile info-tile-warning">
                         <h6 class="mb-1" style="color: #FCD34D;">
                             <i class="bi bi-1-circle me-2"></i>Deploy Teams
                         </h6>
                         <p class="small text-muted mb-0">Dispatch evacuation, medical, and rescue units to affected areas.</p>
                     </div>
-                    <div style="padding: 1rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border-left: 3px solid #F59E0B;">
+                    <div class="info-tile info-tile-warning">
                         <h6 class="mb-1" style="color: #FCD34D;">
                             <i class="bi bi-2-circle me-2"></i>Monitor Sensors
                         </h6>
                         <p class="small text-muted mb-0">Track hazard sensor data and update risk forecasts in real time.</p>
                     </div>
-                    <div style="padding: 1rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border-left: 3px solid #F59E0B;">
+                    <div class="info-tile info-tile-warning">
                         <h6 class="mb-1" style="color: #FCD34D;">
                             <i class="bi bi-3-circle me-2"></i>Maintain Logs
                         </h6>
@@ -136,7 +136,7 @@
         </div>
         <div class="row g-3">
             <div class="col-md-4">
-                <div class="p-3 rounded h-100" style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3B82F6;">
+                <div class="info-tile info-tile-primary h-100">
                     <h6 class="mb-2" style="color: #93C5FD;"><span class="me-2">{{ hz.hazard_icon('flood') }}</span>Flood</h6>
                     <ul class="small text-muted mb-0 ps-3">
                         <li class="mb-1">Activate flood monitoring stations</li>
@@ -146,7 +146,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 rounded h-100" style="background: rgba(245, 158, 11, 0.08); border-left: 3px solid #F59E0B;">
+                <div class="info-tile info-tile-warning h-100">
                     <h6 class="mb-2" style="color: #FCD34D;"><span class="me-2">{{ hz.hazard_icon('landslide') }}</span>Landslide</h6>
                     <ul class="small text-muted mb-0 ps-3">
                         <li class="mb-1">Restrict access to slope-prone zones</li>
@@ -156,7 +156,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="p-3 rounded h-100" style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #EF4444;">
+                <div class="info-tile info-tile-danger h-100">
                     <h6 class="mb-2" style="color: #FCA5A5;"><span class="me-2">{{ hz.hazard_icon('earthquake') }}</span>Earthquake</h6>
                     <ul class="small text-muted mb-0 ps-3">
                         <li class="mb-1">Assess structural damage immediately</li>
@@ -174,7 +174,7 @@
     <div class="col-md-4">
         <div class="card card-custom card-gradient-danger h-100">
             <div class="card-body p-3 d-flex align-items-start gap-3">
-                <div class="icon-badge" style="background: rgba(239,68,68,0.15); color:#FCA5A5; border:1px solid rgba(239,68,68,0.3); flex-shrink:0;">
+                <div class="icon-badge icon-badge-danger" style="flex-shrink:0;">
                     <i class="bi bi-telephone-fill"></i>
                 </div>
                 <div>

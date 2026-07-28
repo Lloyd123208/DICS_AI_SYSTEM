@@ -1,5 +1,6 @@
 {% extends 'pages/base.html' %}
 {% import 'partials/hazard_macros.html' as hz %}
+{% import 'partials/empty_state.html' as es %}
 {% block title %}Response #{{ response.incident_id }} Tasks | DICS AI{% endblock %}
 
 {% block content %}
@@ -94,11 +95,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <div style="font-size:2.5rem;opacity:0.3;margin-bottom:1rem;"><i class="bi bi-list-task"></i></div>
-                        <h5 class="mb-1">No Tasks Assigned</h5>
-                        <p class="text-muted mb-0">No tasks have been assigned to responding agencies yet.</p>
-                    </div>
+                    {{ es.render('bi-list-task', 'No Tasks Assigned', subtitle='No tasks have been assigned to responding agencies yet.') }}
                 {% endif %}
             </div>
         </div>
@@ -120,16 +117,13 @@
                             <label class="form-label">Target Agency <span class="text-danger">*</span></label>
                             <select name="agency" class="form-select" required>
                                 <option value="">— Select Responding Agency —</option>
-                                <option value="Fire Department">Fire Department</option>
-                                <option value="Emergency Management">Emergency Management</option>
-                                <option value="Police Department">Police Department</option>
-                                <option value="Medical Services">Medical Services</option>
-                                <option value="Search & Rescue">Search & Rescue</option>
-                                <option value="Public Works">Public Works</option>
-                                <option value="Environmental Protection">Environmental Protection</option>
-                                <option value="Transportation Authority">Transportation Authority</option>
-                                <option value="Other">Other Agency</option>
+                                {% for a in agencies %}
+                                <option value="{{ a.name }}">{{ a.name }}</option>
+                                {% endfor %}
                             </select>
+                            {% if not agencies %}
+                                <small class="text-warning d-block mt-1">No agencies are registered yet. Contact an administrator to add agencies before assigning tasks.</small>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Task Title <span class="text-danger">*</span></label>

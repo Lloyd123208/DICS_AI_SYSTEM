@@ -195,6 +195,13 @@ def post_incident_evaluation(response_id):
     return redirect(url_for('commander.incident_response_detail', response_id=response_id))
 
 
+@commander_bp.route('/incident-response/')
+def incident_response_no_id():
+    """Guard against links/typos that omit the response id."""
+    flash('Please select an incident response from the Command Center.', 'info')
+    return redirect(url_for('commander.incident_commander_dashboard'))
+
+
 @commander_bp.route('/incident-response/<int:response_id>')
 def incident_response_detail(response_id):
     if not is_incident_commander():
@@ -206,6 +213,9 @@ def incident_response_detail(response_id):
     if response.commander_id != commander.id:
         abort(403)
     incident = response.incident
+    if incident is None:
+        flash('The incident linked to this response could not be found. It may have been deleted.', 'danger')
+        return redirect(url_for('commander.incident_commander_dashboard'))
 
     tasks = Task.query.filter_by(incident_response_id=response_id).all()
     resources = Resource.query.filter_by(incident_response_id=response_id).all()
@@ -246,11 +256,16 @@ def incident_response_tasks(response_id):
     response = IncidentResponse.query.get_or_404(response_id)
     if response.commander_id != commander.id:
         abort(403)
+    if response.incident is None:
+        flash('The incident linked to this response could not be found. It may have been deleted.', 'danger')
+        return redirect(url_for('commander.incident_commander_dashboard'))
     tasks = Task.query.filter_by(incident_response_id=response_id).all()
+    agencies = Agency.query.order_by(Agency.name).all()
 
     return render_template('pages/incident_response_tasks.html',
                          response=response,
                          tasks=tasks,
+                         agencies=agencies,
                          active_tab='tasks')
 
 
@@ -264,11 +279,16 @@ def incident_response_resources(response_id):
     response = IncidentResponse.query.get_or_404(response_id)
     if response.commander_id != commander.id:
         abort(403)
+    if response.incident is None:
+        flash('The incident linked to this response could not be found. It may have been deleted.', 'danger')
+        return redirect(url_for('commander.incident_commander_dashboard'))
     resources = Resource.query.filter_by(incident_response_id=response_id).all()
+    agencies = Agency.query.order_by(Agency.name).all()
 
     return render_template('pages/incident_response_resources.html',
                          response=response,
                          resources=resources,
+                         agencies=agencies,
                          active_tab='resources')
 
 
@@ -282,6 +302,9 @@ def incident_response_reports(response_id):
     response = IncidentResponse.query.get_or_404(response_id)
     if response.commander_id != commander.id:
         abort(403)
+    if response.incident is None:
+        flash('The incident linked to this response could not be found. It may have been deleted.', 'danger')
+        return redirect(url_for('commander.incident_commander_dashboard'))
     reports = IncidentMessage.query.filter_by(incident_response_id=response_id).order_by(IncidentMessage.created_at.desc()).all()
 
     return render_template('pages/incident_response_reports.html',
@@ -300,6 +323,9 @@ def incident_response_timeline(response_id):
     response = IncidentResponse.query.get_or_404(response_id)
     if response.commander_id != commander.id:
         abort(403)
+    if response.incident is None:
+        flash('The incident linked to this response could not be found. It may have been deleted.', 'danger')
+        return redirect(url_for('commander.incident_commander_dashboard'))
     events = compile_incident_timeline(response)
 
     return render_template('pages/incident_response_timeline.html',
@@ -340,7 +366,8 @@ def incident_response_close_page(response_id):
         response.closed_at = datetime.utcnow()
         response.resolved_at = datetime.utcnow()
         response.situation_summary = f"Response Closed. Total Casualties: {casualties}, Total Evacuated: {evacuated}"
-        response.incident.alert = False
+        if response.incident is not None:
+            response.incident.alert = False
 
         db.session.add(closure_report)
         try:
@@ -382,7 +409,7 @@ def assign_task(response_id):
         valid_agency_names = [a.name for a in agencies]
         if agency not in valid_agency_names:
             flash(f'Invalid agency "{agency}". Please select from the list.', 'error')
-            return redirect(url_for('incident_response_tasks', response_id=response_id))
+            return redirect(url_for('commander.incident_response_tasks', response_id=response_id))
 
         task = Task(
             incident_response_id=response_id,
@@ -429,7 +456,7 @@ def allocate_resource(response_id):
 
         if quantity < 1:
             flash('Quantity must be at least 1.', 'error')
-            return redirect(url_for('incident_response_resources', response_id=response_id))
+            return redirect(url_for('commander.incident_response_resources', response_id=response_id))
 
         resource = Resource(
             incident_response_id=response_id,

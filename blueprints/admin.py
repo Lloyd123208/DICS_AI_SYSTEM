@@ -7,7 +7,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 from werkzeug.security import generate_password_hash
 
 from models import db, User, Incident, IncidentResponse, Task, Resource, Agency
-from blueprints.common import is_admin, is_admin_or_eoc
+from blueprints.common import is_admin, is_eoc_staff
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -17,13 +17,13 @@ def admin():
     if not is_admin():
         flash('Admin access required.', 'danger')
         return redirect(url_for('dashboard'))
-    return redirect(url_for('admin.admin_alerts'))
+    return redirect(url_for('admin.manage_users'))
 
 
 @admin_bp.route('/admin/alerts')
 def admin_alerts():
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('dashboard'))
 
     incidents = Incident.query.order_by(Incident.created_at.desc()).all()
@@ -70,7 +70,8 @@ def manage_users():
 
     users = User.query.order_by(User.created_at.desc()).all()
     roles = ['user', 'agency_coordinator', 'incident_commander', 'field_responder', 'eoc_staff', 'admin']
-    return render_template('pages/user_management.html', users=users, roles=roles)
+    agencies = Agency.query.order_by(Agency.name).all()
+    return render_template('pages/user_management.html', users=users, roles=roles, agencies=agencies)
 
 
 @admin_bp.route('/admin/users/add', methods=['POST'])
@@ -103,6 +104,15 @@ def add_user():
 
         if User.query.filter_by(email=email).first():
             flash('Email already registered.', 'error')
+            return redirect(url_for('admin.manage_users'))
+
+        agency_linked_roles = {'agency_coordinator', 'field_responder'}
+        valid_agency_names = [a.name for a in Agency.query.all()]
+        if role in agency_linked_roles and not agency:
+            flash('An agency must be selected for this role, or tasks/resources assigned to it will never reach this user.', 'error')
+            return redirect(url_for('admin.manage_users'))
+        if agency and agency not in valid_agency_names:
+            flash(f'Invalid agency "{agency}". Please select from the list.', 'error')
             return redirect(url_for('admin.manage_users'))
 
         new_user = User(
@@ -145,10 +155,22 @@ def update_user(user_id):
                 flash('Cannot remove last admin account.', 'error')
                 return redirect(url_for('admin.manage_users'))
 
+        new_agency = request.form.get('agency', user.agency or '').strip()
+        new_role = request.form.get('role', user.role)
+
+        agency_linked_roles = {'agency_coordinator', 'field_responder'}
+        valid_agency_names = [a.name for a in Agency.query.all()]
+        if new_role in agency_linked_roles and not new_agency:
+            flash('An agency must be selected for this role, or tasks/resources assigned to it will never reach this user.', 'error')
+            return redirect(url_for('admin.manage_users'))
+        if new_agency and new_agency not in valid_agency_names:
+            flash(f'Invalid agency "{new_agency}". Please select from the list.', 'error')
+            return redirect(url_for('admin.manage_users'))
+
         user.full_name = request.form.get('full_name', user.full_name).strip()
         user.contact_number = request.form.get('contact_number', user.contact_number).strip()
-        user.agency = request.form.get('agency', user.agency).strip()
-        user.role = request.form.get('role', user.role)
+        user.agency = new_agency
+        user.role = new_role
 
         try:
             db.session.commit()
@@ -196,9 +218,9 @@ def toggle_user_status(user_id):
 
 @admin_bp.route('/admin/responses')
 def admin_responses():
-    """Admin/EOC view of all active IncidentResponse records."""
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    """EOC staff view of all active IncidentResponse records."""
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('dashboard'))
 
     active_responses = IncidentResponse.query.filter(

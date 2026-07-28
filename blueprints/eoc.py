@@ -1,7 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from models import db, User, Incident, IncidentResponse, Task, Resource
-from blueprints.common import is_eoc_staff, is_admin_or_eoc
+from blueprints.common import is_eoc_staff
 
 eoc_bp = Blueprint('eoc', __name__)
 
@@ -142,8 +142,8 @@ def eoc_resource_monitoring():
 @eoc_bp.route('/admin/alerts/<int:incident_id>/toggle', methods=['POST'])
 def toggle_alert(incident_id):
     """Dispatch: toggle an incident's public alert status."""
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('dashboard'))
 
     incident = Incident.query.get_or_404(incident_id)
@@ -161,8 +161,8 @@ def toggle_alert(incident_id):
 @eoc_bp.route('/admin/incidents/<int:incident_id>/verify', methods=['POST'])
 def verify_incident(incident_id):
     """Dispatch: verify that a reported incident is legitimate."""
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('dashboard'))
 
     incident = Incident.query.get_or_404(incident_id)
@@ -184,8 +184,8 @@ def verify_incident(incident_id):
 @eoc_bp.route('/admin/incidents/<int:incident_id>/assign-commander', methods=['POST'])
 def assign_commander(incident_id):
     """Dispatch: assign a commander to an unresponded incident, creating an IncidentResponse."""
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('admin.admin_alerts'))
 
     incident = Incident.query.get_or_404(incident_id)
@@ -227,8 +227,8 @@ def assign_commander(incident_id):
 @eoc_bp.route('/admin/responses/<int:response_id>/transfer', methods=['POST'])
 def transfer_commander(response_id):
     """Dispatch: transfer an active response to a different commander."""
-    if not is_admin_or_eoc():
-        flash('Admin or EOC staff access required.', 'danger')
+    if not is_eoc_staff():
+        flash('EOC staff access required.', 'danger')
         return redirect(url_for('admin.admin_responses'))
 
     response = IncidentResponse.query.get_or_404(response_id)

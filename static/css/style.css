@@ -20,6 +20,63 @@ body {
     color: var(--text-primary) !important;
     font-family: 'SF Pro Display', -apple-system, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: 0.01em;
+    line-height: 1.6;
+    font-size: 0.98rem;
+}
+
+.skip-link {
+    position: absolute;
+    top: -3rem;
+    left: 1rem;
+    z-index: 1100;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--accent-glow);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+    top: 1rem;
+}
+
+main {
+    scroll-margin-top: 1rem;
+}
+
+a:hover,
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.btn-modern:focus-visible,
+.btn-brand:focus-visible,
+.btn-primary-modern:focus-visible,
+.btn-success-modern:focus-visible,
+.sidebar-nav-link:focus-visible,
+.mobile-menu-btn:focus-visible,
+.sidebar-toggle:focus-visible,
+.sidebar-close-mobile:focus-visible,
+.photo-dropzone:focus-visible,
+.photo-preview-remove:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: 2px solid var(--accent-glow);
+    outline-offset: 2px;
+}
+
+.modal-surface {
+    background: linear-gradient(180deg, rgba(20, 27, 45, 0.98), rgba(10, 13, 26, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 1rem;
+    color: var(--text-primary);
+}
+
+.toast-container .toast {
+    min-width: 20rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
 }
 
 /* Strategic Header & Navbar Override */
@@ -48,22 +105,22 @@ body {
 
 /* Command Console Cards */
 .card-custom {
-    background-color: var(--bg-card) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+    background: linear-gradient(180deg, rgba(20, 27, 45, 0.95), rgba(12, 18, 33, 0.98)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.26) !important;
     color: var(--text-primary) !important;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 .card-title {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #E0E7FF;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.75rem;
-    margin-bottom: 1.25rem;
+    color: #DDE7FF;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.7rem;
+    margin-bottom: 1rem;
 }
 
 /* Card Body Text Improvements */
@@ -180,6 +237,25 @@ body {
     color: var(--hazard-high);
 }
 
+/* Neutralize default browser fieldset/legend chrome so grouped radio/checkbox
+   controls can use <fieldset>/<legend> for accessible grouping while matching
+   the existing .form-label look */
+fieldset.form-group-fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1rem;
+    min-width: 0;
+}
+fieldset.form-group-fieldset legend {
+    color: #D1D5DB !important;
+    font-weight: 600;
+    font-size: 0.82rem;
+    float: none;
+    width: auto;
+    margin-bottom: 0.5rem;
+    padding: 0;
+}
+
 /* Badge Text Brightness */
 .badge-light {
     color: var(--bg-main) !important;
@@ -228,7 +304,7 @@ p.text-muted {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
 }
 .form-control::placeholder {
-    color: #4B5563;
+    color: #7B8494;
 }
 
 /* Systems Data Tables */
@@ -258,20 +334,20 @@ p.text-muted {
 
 /* Action Interface Buttons */
 .btn-brand {
-    background: linear-gradient(135deg, #1E40AF, #1D4ED8) !important;
+    background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
     color: #ffffff !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     letter-spacing: 0.05em;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(29, 78, 216, 0.22);
     transition: all 0.2s ease;
 }
 .btn-brand:hover {
-    background: linear-gradient(135deg, #2563EB, #1E40AF) !important;
-    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.5);
+    background: linear-gradient(135deg, #3B82F6, #2563EB) !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
 }
 
 /* Hazard Operational Level Badges */
@@ -602,6 +678,8 @@ p.text-muted {
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     padding: 0.75rem 1.5rem !important;
+    min-width: 2.4rem !important;
+    min-height: 2.4rem !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     position: relative;
     overflow: hidden;
@@ -966,6 +1044,80 @@ p.text-muted {
     color: var(--accent-glow);
 }
 
+.status-banner {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.status-banner .status-label {
+    display: inline-block;
+    margin-bottom: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.status-banner .status-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.status-banner .status-detail {
+    color: #cbd5e1;
+    line-height: 1.6;
+    max-width: 52rem;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.38rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-pill i {
+    font-size: 0.85rem;
+}
+
+.status-pill-danger {
+    background: rgba(248, 113, 113, 0.12);
+    color: #fecdd3;
+    border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.status-pill-warning {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fef3c7;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-pill-success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #bbf7d0;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-pill-info {
+    background: rgba(59, 130, 246, 0.12);
+    color: #bfdbfe;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
 /* Alert Message Enhancement */
 .alert-enhanced {
     border-radius: 8px;
@@ -1203,7 +1355,6 @@ p.text-muted {
 .photo-dropzone:focus-visible {
     border-color: rgba(59, 130, 246, 0.5);
     background: rgba(59, 130, 246, 0.04);
-    outline: none;
 }
 
 .photo-dropzone.is-dragover {
@@ -1435,12 +1586,13 @@ p.text-muted {
     .mb-3 { margin-bottom: 0.75rem !important; }
     .my-4 { margin-top: 1rem !important; margin-bottom: 1rem !important; }
     
-    /* Header sizing */
-    h2 { font-size: 1.25rem !important; }
-    h3 { font-size: 1.1rem !important; }
-    h4 { font-size: 1rem !important; }
-    h5 { font-size: 0.95rem !important; }
-    h6 { font-size: 0.85rem !important; }
+    /* Header sizing (also applies to Bootstrap's .h1-.h6 utility classes, so a
+       heading's visual size no longer has to match its semantic tag level) */
+    h2, .h2 { font-size: 1.25rem !important; }
+    h3, .h3 { font-size: 1.1rem !important; }
+    h4, .h4 { font-size: 1rem !important; }
+    h5, .h5 { font-size: 0.95rem !important; }
+    h6, .h6 { font-size: 0.85rem !important; }
     
     /* Table font scaling */
     .table {
@@ -2394,16 +2546,63 @@ p.text-muted {
 
 /* ── Sidebar nav link transitions ───────────────────────── */
 .sidebar-nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
     transition:
         background 0.2s ease,
         color 0.2s ease,
         border-left-color 0.2s ease,
         padding-left 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 0.2s ease !important;
+    min-height: 2.4rem;
+    padding: 0.65rem 1rem;
+    border-left: 3px solid transparent;
+    color: var(--text-muted) !important;
+    overflow: hidden;
 }
 
-.sidebar-nav-link:hover {
+.sidebar-nav-link:hover,
+.sidebar-nav-link:focus-visible {
     padding-left: 1.35rem;
+    color: var(--text-primary) !important;
+}
+
+.sidebar-nav-link .nav-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-nav-link .badge {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.sidebar-nav-link.active {
+    background: rgba(59, 130, 246, 0.16);
+    color: #ffffff !important;
+    border-left-color: var(--accent-glow);
+}
+
+.sidebar-nav-link.active i,
+.sidebar-nav-link.active .nav-text,
+.sidebar-nav-link.active .badge {
+    color: #ffffff !important;
+}
+
+.mobile-menu-btn,
+.sidebar-toggle,
+.sidebar-close-mobile,
+.photo-preview-remove,
+.btn-close {
+    min-width: 2.4rem !important;
+    min-height: 2.4rem !important;
+    padding: 0.5rem !important;
 }
 
 .sidebar-nav-link i {

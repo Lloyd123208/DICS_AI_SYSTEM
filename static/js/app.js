@@ -3,45 +3,147 @@
    ============================================================ */
 
 /* ── SOS trigger ─────────────────────────────────────────── */
-function triggerSOS() {
-    if (!confirm('Confirm SOS Emergency Alert?\n\nThis will immediately notify emergency authorities and services.')) {
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function showToast(message, type = 'info', title = '') {
+    const container = document.getElementById('appToastContainer');
+    if (!container) return;
+
+    const variant = type === 'success' ? 'success' : type === 'danger' ? 'danger' : type === 'warning' ? 'warning' : 'info';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${variant} border-0`;
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${title ? `<strong class="d-block mb-1">${escapeHtml(title)}</strong>` : ''}
+                ${escapeHtml(message)}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>`;
+
+    container.appendChild(toast);
+    const instance = new bootstrap.Toast(toast, { autohide: true, delay: 5000 });
+    instance.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function requestConfirmation({ title = 'Confirm action', message = 'Are you sure you want to continue?', confirmLabel = 'Continue' } = {}) {
+    return new Promise(resolve => {
+        const modalEl = document.getElementById('globalConfirmModal');
+        const titleEl = document.getElementById('globalConfirmTitle');
+        const bodyEl = document.getElementById('globalConfirmBody');
+        const confirmBtn = document.getElementById('globalConfirmAction');
+        const cancelBtn = document.getElementById('globalConfirmCancel');
+        if (!modalEl || !titleEl || !bodyEl || !confirmBtn || !cancelBtn) {
+            resolve(false);
+            return;
+        }
+
+        titleEl.textContent = title;
+        bodyEl.textContent = message;
+        confirmBtn.textContent = confirmLabel;
+
+        const cleanup = () => {
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        };
+
+        const onHidden = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+        confirmBtn.onclick = () => {
+            cleanup();
+            modalEl.querySelector('.btn-close').click();
+            resolve(true);
+        };
+        cancelBtn.onclick = () => {
+            cleanup();
+            modalEl.querySelector('.btn-close').click();
+            resolve(false);
+        };
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    });
+}
+
+function initAccessibleConfirmations() {
+    document.querySelectorAll('[data-confirm]').forEach(element => {
+        if (element.dataset.confirmBound === 'true') return;
+        element.dataset.confirmBound = 'true';
+
+        element.addEventListener('click', async event => {
+            if (event.defaultPrevented) return;
+            const title = element.dataset.confirmTitle || 'Confirm action';
+            const message = element.dataset.confirm || 'Are you sure you want to continue?';
+            const confirmed = await requestConfirmation({ title, message });
+            if (!confirmed) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            const form = element.closest('form');
+            if (form) {
+                event.preventDefault();
+                form.submit();
+            }
+        });
+    });
+}
+
+async function triggerSOS() {
+    const confirmed = await requestConfirmation({
+        title: 'Send SOS alert',
+        message: 'This will immediately notify emergency authorities and services. Continue?',
+        confirmLabel: 'Send alert'
+    });
+    if (!confirmed) {
         return;
     }
-    
-    // Disable button to prevent duplicate submissions
+
     const sosButton = document.querySelector('.sos-button');
     if (sosButton) {
         sosButton.disabled = true;
     }
-    
-    // Send emergency alert to backend
-    fetch('/emergency-sos', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            location: 'User Emergency Location'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
+
+    try {
+        const response = await fetch('/emergency-sos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                location: 'User Emergency Location'
+            })
+        });
+        const data = await response.json();
         if (data.success) {
-            alert('🚨 EMERGENCY ALERT SENT\n\n' + data.message + '\n\nEmergency services have been notified of your location.');
+            showToast(data.message || 'Emergency alert sent successfully.', 'success', 'SOS alert sent');
         } else {
-            alert('Error: ' + data.message);
+            showToast(data.message || 'Unable to send emergency alert.', 'danger', 'Alert failed');
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error:', error);
-        alert('Error sending emergency alert. Please contact authorities directly.');
-    })
-    .finally(() => {
-        // Re-enable button
+        showToast('Unable to send emergency alert. Please contact authorities directly.', 'danger', 'Alert failed');
+    } finally {
         if (sosButton) {
             sosButton.disabled = false;
         }
-    });
+    }
 }
 
 /* ── Ripple effect on buttons ────────────────────────────── */
@@ -62,14 +164,26 @@ function attachRipple(btn) {
     });
 }
 
+/* ── Reduced motion preference ──────────────────────────────
+   CSS already kills transitions/animations via prefers-reduced-motion,
+   but these two effects are driven by JS (opacity set via inline style,
+   and a requestAnimationFrame counter loop) so they need their own check. */
+function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /* ── Animated stat counters ─────────────────────────────── */
 function animateCounter(el) {
     const target   = parseFloat(el.dataset.target || el.textContent.replace(/[^0-9.]/g, ''));
     const suffix   = el.dataset.suffix || '';
-    const duration = 900;
-    const start    = performance.now();
     if (isNaN(target)) return;
     const isFloat = String(el.dataset.target || el.textContent).includes('.');
+    if (prefersReducedMotion()) {
+        el.textContent = (isFloat ? target.toFixed(1) : Math.round(target)) + suffix;
+        return;
+    }
+    const duration = 900;
+    const start    = performance.now();
     (function step(now) {
         const progress = Math.min((now - start) / duration, 1);
         const eased    = 1 - Math.pow(1 - progress, 3);
@@ -150,6 +264,10 @@ function initPageTransitions() {
         if (skip) return;
 
         e.preventDefault();
+        if (prefersReducedMotion()) {
+            window.location.href = href;
+            return;
+        }
         document.body.style.transition = 'opacity 0.18s ease';
         document.body.style.opacity    = '0';
         setTimeout(() => { window.location.href = href; }, 190);
@@ -159,6 +277,7 @@ function initPageTransitions() {
 /* ── Boot ────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.btn').forEach(attachRipple);
+    initAccessibleConfirmations();
 
     document.querySelectorAll('.stat-value[data-target], .stat-value').forEach(el => {
         if (/^\d/.test(el.textContent.trim())) animateCounter(el);
@@ -174,11 +293,13 @@ window.addEventListener('DOMContentLoaded', function () {
        <script> block. Do NOT add sidebar logic here to avoid double-binding. */
 
     /* Fade page in on load */
-    document.body.style.opacity    = '0';
-    document.body.style.transition = 'opacity 0.25s ease';
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => { document.body.style.opacity = '1'; });
-    });
+    if (!prefersReducedMotion()) {
+        document.body.style.opacity    = '0';
+        document.body.style.transition = 'opacity 0.25s ease';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => { document.body.style.opacity = '1'; });
+        });
+    }
 });
 
 /* ── Back/Forward cache restore fix ─────────────────────────
@@ -189,6 +310,10 @@ window.addEventListener('DOMContentLoaded', function () {
 window.addEventListener('pageshow', function (e) {
     if (e.persisted) {
         /* Page was restored from back/forward cache */
+        if (prefersReducedMotion()) {
+            document.body.style.opacity = '1';
+            return;
+        }
         document.body.style.transition = 'opacity 0.2s ease';
         document.body.style.opacity    = '1';
     }

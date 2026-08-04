@@ -31,13 +31,18 @@ def coordinator_dashboard():
     active_incidents = IncidentResponse.query.filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
     ).count()
+    total_critical = IncidentResponse.query.filter(
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING']),
+        IncidentResponse.priority_level == 'CRITICAL'
+    ).count()
 
     return render_template('pages/coordinator_dashboard.html',
         my_tasks=my_tasks,
         pending_count=pending_count,
         active_responses=active_responses,
         deployed_resources=deployed_resources,
-        active_incidents=active_incidents
+        active_incidents=active_incidents,
+        total_critical=total_critical
     )
 
 

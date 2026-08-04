@@ -2,7 +2,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 
 from models import db, User, Incident
 from services.realtime_data import get_earthquake_data
-from ai.prediction import predict_hazard
+from ai.decision_support import predict_hazard
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -19,6 +19,7 @@ def ai_prediction():
         return redirect(url_for('dashboard'))
 
     prediction = None
+    earthquake_data = get_earthquake_data()
     if request.method == 'POST':
         hazard_type = request.form.get('hazard_type')
         rainfall = float(request.form.get('rainfall') or 0)
@@ -32,6 +33,7 @@ def ai_prediction():
             river_level_m=river_level,
             soil_moisture_pct=soil_moisture,
             population_density=population_density,
+            earthquake_data=earthquake_data,
         )
 
         user = User.query.filter_by(username=session['username']).first()
@@ -62,7 +64,6 @@ def ai_prediction():
     latest_incident = Incident.query.order_by(Incident.created_at.desc()).first()
     latest_risk_score = latest_incident.score if latest_incident else 0
 
-    earthquake_data = get_earthquake_data()
     latest_earthquake_magnitude = 0
     if earthquake_data and len(earthquake_data) > 0:
         latest_earthquake_magnitude = earthquake_data[0].get('magnitude', 0)

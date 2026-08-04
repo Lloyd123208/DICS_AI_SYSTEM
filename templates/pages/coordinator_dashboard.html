@@ -4,6 +4,7 @@
 {% block title %}Agency Coordinator Hub | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Agency Coordinator Hub</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -22,6 +23,43 @@
                 <p class="text-muted mb-0 mt-2" style="padding-left:2.75rem;">
                     Receive assignments, coordinate personnel, and report operational status across your agency.
                 </p>
+
+                {% set critical_incidents = total_critical|default(0)|int %}
+                <div class="status-banner mt-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-start gap-4">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="icon-badge icon-badge-warning">
+                                <i class="bi bi-shield-exclamation"></i>
+                            </div>
+                            <div>
+                                <div class="status-label">Attention area</div>
+                                <div class="status-title">
+                                    {% if critical_incidents > 0 %}
+                                        <span>{{ critical_incidents }} critical incident{{ 's' if critical_incidents != 1 else '' }} require review.</span>
+                                        <span class="status-pill status-pill-danger"><i class="bi bi-exclamation-triangle-fill"></i> Critical</span>
+                                    {% else %}
+                                        <span>Responses are stable. Monitor task status and readiness.</span>
+                                        <span class="status-pill status-pill-success"><i class="bi bi-check-circle-fill"></i> Stable</span>
+                                    {% endif %}
+                                </div>
+                                <div class="status-detail">
+                                    {% if critical_incidents > 0 %}
+                                        Prioritize critical response briefs, reallocate resources, and confirm field communications.
+                                    {% else %}
+                                        Keep your team aligned and review pending task assignments to maintain preparedness.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column gap-2 ms-auto align-items-stretch align-items-lg-end">
+                            <a href="{{ url_for('coordinator.coordinator_reports') }}" class="btn btn-primary-modern btn-modern px-4">Review Critical Incidents</a>
+                            <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
+                                <a href="{{ url_for('coordinator.coordinator_tasks') }}" class="btn btn-outline-light btn-sm px-4">Manage Tasks</a>
+                                <a href="{{ url_for('coordinator.coordinator_team') }}" class="btn btn-outline-light btn-sm px-4">Coordinate Team</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -238,8 +276,8 @@
                 <form method="POST" action="{{ url_for('coordinator.coordinator_quick_report') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Incident Response</label>
-                        <select name="response_id" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="response_id">Incident Response</label>
+                        <select id="response_id" name="response_id" class="form-select form-select-sm" required>
                             <option value="">— Select Active Response —</option>
                             {% for resp in active_responses %}
                                 <option value="{{ resp.id }}">#{{ resp.incident_id }} – {{ resp.incident.hazard_type }}</option>
@@ -247,25 +285,25 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Title</label>
-                        <input type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Fire Suppression Progress Update" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="title">Report Title</label>
+                        <input id="title" type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Fire Suppression Progress Update" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Status Update</label>
-                        <textarea name="content" class="form-control form-control-sm" rows="3" placeholder="Describe current situation, actions taken, and resource needs..." required></textarea>
+                        <label class="form-label" style="font-size:0.82rem;" for="content">Status Update</label>
+                        <textarea id="content" name="content" class="form-control form-control-sm" rows="3" placeholder="Describe current situation, actions taken, and resource needs..." required></textarea>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label" style="font-size:0.82rem;">Type</label>
-                            <select name="report_type" class="form-select form-select-sm">
+                            <label class="form-label" style="font-size:0.82rem;" for="report_type">Type</label>
+                            <select id="report_type" name="report_type" class="form-select form-select-sm">
                                 <option value="UPDATE">Update</option>
                                 <option value="ALERT">Alert</option>
                                 <option value="MILESTONE">Milestone</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label" style="font-size:0.82rem;">Persons Evacuated</label>
-                            <input type="number" name="evacuated" class="form-control form-control-sm" placeholder="0" min="0">
+                            <label class="form-label" style="font-size:0.82rem;" for="evacuated">Persons Evacuated</label>
+                            <input id="evacuated" type="number" name="evacuated" class="form-control form-control-sm" placeholder="0" min="0">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary-modern btn-modern w-100 py-2" style="font-size:0.85rem;">

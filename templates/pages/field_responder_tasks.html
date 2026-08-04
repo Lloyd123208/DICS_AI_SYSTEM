@@ -3,6 +3,7 @@
 {% block title %}My Tasks | DICS AI Field Responder{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">My Tasks | DICS AI Field Responder</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -121,9 +122,9 @@
                                         </button>
                                     </form>
                                     {% endif %}
-                                    <form method="POST" action="{{ url_for('responder.responder_update_task', task_id=task.id) }}">
+                                    <form method="POST" action="{{ url_for('responder.responder_update_task', task_id=task.id) }}" data-confirm="Mark task as completed?" data-confirm-title="Confirm completion">
                                         <input type="hidden" name="status" value="COMPLETED">
-                                        <button type="submit" class="btn btn-sm" style="background:rgba(16,185,129,0.15);color:#6EE7B7;border:1px solid rgba(16,185,129,0.3);font-size:0.73rem;padding:0.28rem 0.6rem;" onclick="return confirm('Mark task as completed?')">
+                                        <button type="submit" class="btn btn-sm" style="background:rgba(16,185,129,0.15);color:#6EE7B7;border:1px solid rgba(16,185,129,0.3);font-size:0.73rem;padding:0.28rem 0.6rem;">
                                             <i class="bi bi-check2 me-1"></i>Complete
                                         </button>
                                     </form>

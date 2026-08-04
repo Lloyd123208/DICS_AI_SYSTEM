@@ -3,6 +3,7 @@
 {% block title %}Predictive Compute Matrix | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Predictive Compute Matrix</h1>
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <!-- Statistics Cards Row -->
@@ -81,24 +82,24 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row g-3 font-monospace text-muted small">
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold">Target Hazard Index Classification</label>
-                            <select class="form-select text-white font-monospace" name="hazard_type">
+                            <label class="form-label text-uppercase fw-bold" for="hazard_type">Target Hazard Index Classification</label>
+                            <select id="hazard_type" class="form-select text-white font-monospace" name="hazard_type">
                                 <option value="flood">FLOOD HYDROLOGIC MATRIX</option>
                                 <option value="landslide">LANDSLIDE SLOPE SHEAR VECTOR</option>
                                 <option value="storm">ATMOSPHERIC STORM DYNAMICS</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold">Precipitation Gauge Accumulation (mm)</label>
-                            <input class="form-control text-info font-monospace" type="number" name="rainfall" min="0" step="0.1" placeholder="0.0" required>
+                            <label class="form-label text-uppercase fw-bold" for="rainfall">Precipitation Gauge Accumulation (mm)</label>
+                            <input id="rainfall" class="form-control text-info font-monospace" type="number" name="rainfall" min="0" step="0.1" placeholder="0.0" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold">River Level Stage Gauge Threshold (m)</label>
-                            <input class="form-control text-info font-monospace" type="number" name="river_level" min="0" step="0.1" placeholder="0.0" required>
+                            <label class="form-label text-uppercase fw-bold" for="river_level">River Level Stage Gauge Threshold (m)</label>
+                            <input id="river_level" class="form-control text-info font-monospace" type="number" name="river_level" min="0" step="0.1" placeholder="0.0" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold">Grid Square Population Density Metrics</label>
-                            <input class="form-control text-info font-monospace" type="number" name="population_density" min="0" step="1" placeholder="0" required>
+                            <label class="form-label text-uppercase fw-bold" for="population_density">Grid Square Population Density Metrics</label>
+                            <input id="population_density" class="form-control text-info font-monospace" type="number" name="population_density" min="0" step="1" placeholder="0" required>
                         </div>
                     </div>
                     <div class="mt-4 text-end">
@@ -136,6 +137,41 @@
                     <div class="alert alert-danger bg-danger text-white border-0 mt-3 mb-0 font-monospace small">
                         <i class="bi bi-exclamation-octagon-fill me-2"></i><strong>WARNING DISPATCH:</strong> Incident data exceeded core structural triggers. Local warning channels alerted automatically.
                     </div>
+                {% endif %}
+
+                {% if prediction.degraded %}
+                    <div class="alert alert-warning bg-warning text-dark border-0 mt-3 mb-0 font-monospace small">
+                        <i class="bi bi-wifi-off me-2"></i><strong>AI SERVICE UNAVAILABLE:</strong> Showing a manual-review fallback, not a live model assessment.
+                    </div>
+                {% endif %}
+
+                {% if prediction.recommended_agencies or prediction.recommended_resources %}
+                <div class="row mt-3 g-3">
+                    {% if prediction.recommended_agencies %}
+                    <div class="col-md-6">
+                        <div class="p-3 bg-dark rounded border border-secondary small h-100">
+                            <span class="text-muted d-block mb-2">// SUGGESTED RESPONDING AGENCIES:</span>
+                            <ul class="mb-0 ps-3 text-white">
+                                {% for agency in prediction.recommended_agencies %}
+                                <li>{{ agency }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if prediction.recommended_resources %}
+                    <div class="col-md-6">
+                        <div class="p-3 bg-dark rounded border border-secondary small h-100">
+                            <span class="text-muted d-block mb-2">// SUGGESTED RESOURCES:</span>
+                            <ul class="mb-0 ps-3 text-white">
+                                {% for resource in prediction.recommended_resources %}
+                                <li>{{ resource }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
         </div>

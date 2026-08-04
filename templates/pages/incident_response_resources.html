@@ -3,6 +3,7 @@
 {% block title %}Response #{{ response.incident_id }} Resources | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Response #{{ response.incident_id }} Resources</h1>
 {% set active_tab = 'resources' %}
 {% include 'partials/response_header.html' %}
 
@@ -70,8 +71,9 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-success" data-bs-toggle="collapse" data-bs-target="#res-{{ resource.id }}">
-                                            <i class="bi bi-chevron-down"></i>
+                                        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="collapse" data-bs-target="#res-{{ resource.id }}"
+                                                aria-expanded="false" aria-controls="res-{{ resource.id }}" aria-label="Toggle operational notes for this resource">
+                                            <i class="bi bi-chevron-down" aria-hidden="true"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -112,8 +114,8 @@
                     <form method="POST" action="{{ url_for('commander.allocate_resource', response_id=response.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
-                            <label class="form-label">Resource Type <span class="text-danger">*</span></label>
-                            <select name="resource_type" class="form-select" required>
+                            <label class="form-label" for="resource_type">Resource Type <span class="text-danger">*</span></label>
+                            <select id="resource_type" name="resource_type" class="form-select" required>
                                 <option value="">— Select Resource Type —</option>
                                 <option value="Personnel">Personnel (Emergency Teams)</option>
                                 <option value="Vehicles">Vehicles (Ambulances/Trucks)</option>
@@ -129,8 +131,8 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Provider Agency <span class="text-danger">*</span></label>
-                            <select name="agency" class="form-select" required>
+                            <label class="form-label" for="agency">Provider Agency <span class="text-danger">*</span></label>
+                            <select id="agency" name="agency" class="form-select" required>
                                 <option value="">— Select Source Agency —</option>
                                 {% for a in agencies %}
                                 <option value="{{ a.name }}">{{ a.name }}</option>
@@ -141,16 +143,16 @@
                             {% endif %}
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
-                            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                            <label class="form-label" for="quantity">Quantity <span class="text-danger">*</span></label>
+                            <input id="quantity" type="number" name="quantity" class="form-control" min="1" value="1" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Initial Deployment Location</label>
-                            <input type="text" name="location" class="form-control" placeholder="e.g., Zone C Shelter, Sector 2 Highway">
+                            <label class="form-label" for="location">Initial Deployment Location</label>
+                            <input id="location" type="text" name="location" class="form-control" placeholder="e.g., Zone C Shelter, Sector 2 Highway">
                         </div>
                         <div class="mb-4">
-                            <label class="form-label">Operational Notes</label>
-                            <textarea name="notes" class="form-control" rows="3" placeholder="Condition reports, radio channels, staging instructions..."></textarea>
+                            <label class="form-label" for="notes">Operational Notes</label>
+                            <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Condition reports, radio channels, staging instructions..."></textarea>
                         </div>
                         <button type="submit" class="btn btn-success-modern btn-modern w-100 py-2">
                             <i class="bi bi-check-circle me-2"></i>Allocate Resource

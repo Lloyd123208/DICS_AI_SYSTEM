@@ -3,6 +3,7 @@
 {% block title %}Situation Reports | Agency Coordinator | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Situation Reports | Agency Coordinator</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -97,8 +98,8 @@
                 <form method="POST" action="{{ url_for('coordinator.coordinator_submit_report') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Active Response <span class="text-danger">*</span></label>
-                        <select name="response_id" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="response_id">Active Response <span class="text-danger">*</span></label>
+                        <select id="response_id" name="response_id" class="form-select form-select-sm" required>
                             <option value="">— Select Active Response —</option>
                             {% for resp in active_responses %}
                                 <option value="{{ resp.id }}">#{{ resp.incident_id }} – {{ resp.incident.hazard_type }} ({{ resp.incident.location or 'Unknown' }})</option>
@@ -106,11 +107,11 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Title <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Fire Suppression – 60% Containment" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="title">Report Title <span class="text-danger">*</span></label>
+                        <input id="title" type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Fire Suppression – 60% Containment" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Type</label>
+                    <fieldset class="mb-3 form-group-fieldset">
+                        <legend>Report Type</legend>
                         <div class="d-flex gap-2 flex-wrap">
                             {% for rtype, label, color in [('UPDATE','Update','#C4B5FD'),('ALERT','Alert','#FCA5A5'),('MILESTONE','Milestone','#86EFAC')] %}
                             <label class="d-flex align-items-center gap-1" style="cursor:pointer;font-size:0.82rem;">
@@ -119,23 +120,23 @@
                             </label>
                             {% endfor %}
                         </div>
+                    </fieldset>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-size:0.82rem;" for="content">Situation Report <span class="text-danger">*</span></label>
+                        <textarea id="content" name="content" class="form-control form-control-sm" rows="5" placeholder="Describe current conditions, actions taken, challenges encountered, and immediate needs..." required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Situation Report <span class="text-danger">*</span></label>
-                        <textarea name="content" class="form-control form-control-sm" rows="5" placeholder="Describe current conditions, actions taken, challenges encountered, and immediate needs..." required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Affected Areas (CALABARZON)</label>
-                        <input type="text" name="affected_areas" class="form-control form-control-sm" placeholder="e.g., Calamba City, Sto. Tomas, Batangas">
+                        <label class="form-label" style="font-size:0.82rem;" for="affected_areas">Affected Areas (CALABARZON)</label>
+                        <input id="affected_areas" type="text" name="affected_areas" class="form-control form-control-sm" placeholder="e.g., Calamba City, Sto. Tomas, Batangas">
                     </div>
                     <div class="row g-2 mb-4">
                         <div class="col-6">
-                            <label class="form-label" style="font-size:0.82rem;">Persons Evacuated</label>
-                            <input type="number" name="evacuated" class="form-control form-control-sm" placeholder="0" min="0">
+                            <label class="form-label" style="font-size:0.82rem;" for="evacuated">Persons Evacuated</label>
+                            <input id="evacuated" type="number" name="evacuated" class="form-control form-control-sm" placeholder="0" min="0">
                         </div>
                         <div class="col-6">
-                            <label class="form-label" style="font-size:0.82rem;">Reported Casualties</label>
-                            <input type="number" name="casualties" class="form-control form-control-sm" placeholder="0" min="0">
+                            <label class="form-label" style="font-size:0.82rem;" for="casualties">Reported Casualties</label>
+                            <input id="casualties" type="number" name="casualties" class="form-control form-control-sm" placeholder="0" min="0">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-modern w-100 py-2" style="background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff;font-weight:700;border:none;">

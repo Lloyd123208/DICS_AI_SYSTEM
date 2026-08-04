@@ -2,6 +2,7 @@
 {% block title %}Response #{{ response.incident_id }} Overview | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Response #{{ response.incident_id }} Overview</h1>
 {% set active_tab = 'dashboard' %}
 {% include 'partials/response_header.html' %}
 
@@ -215,12 +216,12 @@
         {% if response.status in ['CLOSED', 'RESOLVED'] %}
             <form method="post" action="{{ url_for('commander.post_incident_evaluation', response_id=response.id) }}" class="row g-3">
                 <div class="col-12">
-                    <label class="form-label">Lessons learned</label>
-                    <textarea class="form-control" name="lessons_learned" rows="4" placeholder="What went well or what should improve?">{{ (post_incident_report.lessons_learned if post_incident_report else '') }}</textarea>
+                    <label class="form-label" for="lessons_learned">Lessons learned</label>
+                    <textarea id="lessons_learned" class="form-control" name="lessons_learned" rows="4" placeholder="What went well or what should improve?">{{ (post_incident_report.lessons_learned if post_incident_report else '') }}</textarea>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Response rating (1-5)</label>
-                    <select class="form-select" name="response_rating">
+                    <label class="form-label" for="response_rating">Response rating (1-5)</label>
+                    <select id="response_rating" class="form-select" name="response_rating">
                         <option value="">Select rating</option>
                         {% for rating in range(1, 6) %}
                             <option value="{{ rating }}" {% if post_incident_report and post_incident_report.response_rating == rating %}selected{% endif %}>{{ rating }}</option>
@@ -228,8 +229,8 @@
                     </select>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Recommendations</label>
-                    <textarea class="form-control" name="recommendations" rows="3" placeholder="Recommended improvements for future responses">{{ (post_incident_report.recommendations if post_incident_report else '') }}</textarea>
+                    <label class="form-label" for="recommendations">Recommendations</label>
+                    <textarea id="recommendations" class="form-control" name="recommendations" rows="3" placeholder="Recommended improvements for future responses">{{ (post_incident_report.recommendations if post_incident_report else '') }}</textarea>
                 </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary-modern">Save evaluation</button>

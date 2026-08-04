@@ -3,6 +3,7 @@
 {% block title %}Resource Requests | Agency Coordinator | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Resource Requests | Agency Coordinator</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -121,8 +122,8 @@
                 <form method="POST" action="{{ url_for('coordinator.coordinator_allocate_resource') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Active Response <span class="text-danger">*</span></label>
-                        <select name="response_id" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="response_id">Active Response <span class="text-danger">*</span></label>
+                        <select id="response_id" name="response_id" class="form-select form-select-sm" required>
                             <option value="">— Select Active Response —</option>
                             {% for resp in active_responses %}
                                 <option value="{{ resp.id }}">#{{ resp.incident_id }} – {{ resp.incident.hazard_type }}</option>
@@ -130,8 +131,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Agency <span class="text-danger">*</span></label>
-                        <select name="agency" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="agency">Agency <span class="text-danger">*</span></label>
+                        <select id="agency" name="agency" class="form-select form-select-sm" required>
                             <option value="">— Select Agency —</option>
                             <option value="Fire Department">Fire Department</option>
                             <option value="Police Department">Police Department</option>
@@ -144,8 +145,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Resource Type <span class="text-danger">*</span></label>
-                        <select name="resource_type" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="resource_type">Resource Type <span class="text-danger">*</span></label>
+                        <select id="resource_type" name="resource_type" class="form-select form-select-sm" required>
                             <option value="">— Select Type —</option>
                             <optgroup label="Personnel">
                                 <option value="Firefighters">Firefighters</option>
@@ -174,24 +175,24 @@
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-5">
-                            <label class="form-label" style="font-size:0.82rem;">Quantity <span class="text-danger">*</span></label>
-                            <input type="number" name="quantity" class="form-control form-control-sm" min="1" placeholder="0" required>
+                            <label class="form-label" style="font-size:0.82rem;" for="quantity">Quantity <span class="text-danger">*</span></label>
+                            <input id="quantity" type="number" name="quantity" class="form-control form-control-sm" min="1" placeholder="0" required>
                         </div>
                         <div class="col-7">
-                            <label class="form-label" style="font-size:0.82rem;">Initial Status</label>
-                            <select name="status" class="form-select form-select-sm">
+                            <label class="form-label" style="font-size:0.82rem;" for="status">Initial Status</label>
+                            <select id="status" name="status" class="form-select form-select-sm">
                                 <option value="AVAILABLE">Available</option>
                                 <option value="DEPLOYED">Deployed</option>
                             </select>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Current Location</label>
-                        <input type="text" name="location" class="form-control form-control-sm" placeholder="e.g., Calamba City Fire Station">
+                        <label class="form-label" style="font-size:0.82rem;" for="location">Current Location</label>
+                        <input id="location" type="text" name="location" class="form-control form-control-sm" placeholder="e.g., Calamba City Fire Station">
                     </div>
                     <div class="mb-4">
-                        <label class="form-label" style="font-size:0.82rem;">Notes / Special Instructions</label>
-                        <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Additional notes..."></textarea>
+                        <label class="form-label" style="font-size:0.82rem;" for="notes">Notes / Special Instructions</label>
+                        <textarea id="notes" name="notes" class="form-control form-control-sm" rows="2" placeholder="Additional notes..."></textarea>
                     </div>
                     <button type="submit" class="btn btn-modern w-100 py-2" style="background:linear-gradient(135deg,#D97706,#F59E0B);color:#0b0f19;font-weight:700;border:none;">
                         <i class="bi bi-plus-circle me-2"></i>Allocate Resource

@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 from models import db, User, Incident, IncidentResponse, Task, Resource, CitizenReport, Agency, PostIncidentReport
 from scheduler import monitor_hazards
 from services.realtime_data import get_weather_data, get_earthquake_data
-from ai.prediction import predict_hazard
+from ai.decision_support import predict_hazard
 
 from blueprints.admin import admin_bp
 from blueprints.commander import (

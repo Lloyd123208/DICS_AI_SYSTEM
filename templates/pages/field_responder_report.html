@@ -2,6 +2,7 @@
 {% block title %}File Field Report | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">File Field Report</h1>
 
 <style>
 .upload-zone {
@@ -98,8 +99,8 @@
                     <div class="row g-3">
                         <!-- Incident Response -->
                         <div class="col-12">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Link to Incident Response *</label>
-                            <select name="incident_response_id" class="form-select" style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;" required>
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="incident_response_id">Link to Incident Response *</label>
+                            <select id="incident_response_id" name="incident_response_id" class="form-select" style="background-color:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;" required>
                                 <option value="">— Select active incident —</option>
                                 {% for resp in active_responses %}
                                 <option value="{{ resp.id }}">
@@ -111,15 +112,15 @@
 
                         <!-- Report Title -->
                         <div class="col-12">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Report Title *</label>
-                            <input type="text" name="title" class="form-control" placeholder="e.g. Rescue Team Alpha – Zone 3 Status Update" required
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="title">Report Title *</label>
+                            <input id="title" type="text" name="title" class="form-control" placeholder="e.g. Rescue Team Alpha – Zone 3 Status Update" required
                                 style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;">
                         </div>
 
                         <!-- Report Type -->
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Report Type *</label>
-                            <select name="report_type" class="form-select" style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;" required>
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="report_type">Report Type *</label>
+                            <select id="report_type" name="report_type" class="form-select" style="background-color:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;" required>
                                 <option value="UPDATE">Situation Update</option>
                                 <option value="ALERT">Alert / Hazard Found</option>
                                 <option value="MILESTONE">Objective Reached</option>
@@ -129,7 +130,7 @@
 
                         <!-- Affected Areas -->
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Affected Area / Zone</label>
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="affected-areas-input">Affected Area / Zone</label>
                             <input type="text" name="affected_areas" id="affected-areas-input" class="form-control" placeholder="e.g. Brgy. Halang, Zone 3"
                                 style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;">
                         </div>
@@ -140,36 +141,38 @@
 
                         <!-- Report Content -->
                         <div class="col-12">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Situation Report *</label>
-                            <textarea name="content" class="form-control" rows="6" required
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="content">Situation Report *</label>
+                            <textarea id="content" name="content" class="form-control" rows="6" required
                                 placeholder="Describe current field conditions, actions taken, obstacles encountered, and immediate needs…"
                                 style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;resize:vertical;"></textarea>
                         </div>
 
                         <!-- Casualties / Evacuated -->
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Casualties (if any)</label>
-                            <input type="number" name="casualties" min="0" class="form-control" placeholder="0"
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="casualties">Casualties (if any)</label>
+                            <input id="casualties" type="number" name="casualties" min="0" class="form-control" placeholder="0"
                                 style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Persons Evacuated</label>
-                            <input type="number" name="evacuated" min="0" class="form-control" placeholder="0"
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="evacuated">Persons Evacuated</label>
+                            <input id="evacuated" type="number" name="evacuated" min="0" class="form-control" placeholder="0"
                                 style="background:#0D1117;color:#E5E7EB;border-color:rgba(255,255,255,0.12);font-size:0.88rem;">
                         </div>
 
                         <!-- Media Upload -->
                         <div class="col-12">
-                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;">Attach Media</label>
-                            <div id="upload-zone" class="upload-zone p-4 rounded-3 text-center"
+                            <label class="form-label" style="font-size:0.8rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;" for="media-input">Attach Media</label>
+                            <button type="button" id="upload-zone" class="upload-zone p-4 rounded-3 text-center"
+                                aria-label="Attach photos or videos, JPG PNG or MP4, max 20MB each"
+                                aria-describedby="uploadZoneHint"
                                 ondragover="event.preventDefault();this.classList.add('is-dragover');"
                                 ondragleave="this.classList.remove('is-dragover');"
                                 ondrop="handleDrop(event);"
                                 onclick="document.getElementById('media-input').click()">
                                 <i class="bi bi-cloud-upload upload-zone-icon" style="font-size:1.8rem;"></i>
                                 <p class="mb-0 mt-2" style="font-size:0.82rem;color:#9CA3AF;">Drag photos or videos here, or click to browse</p>
-                                <p class="mb-0 mt-1" style="font-size:0.72rem;color:#6B7280;">JPG, PNG, MP4 — max 20MB each</p>
-                            </div>
+                                <p id="uploadZoneHint" class="mb-0 mt-1" style="font-size:0.72rem;color:#6B7280;">JPG, PNG, MP4 — max 20MB each</p>
+                            </button>
                             <input type="file" id="media-input" name="media" multiple accept="image/*,video/*" class="d-none" onchange="previewFiles(this.files)">
                             <div id="file-preview" class="d-flex flex-wrap gap-2 mt-3"></div>
                         </div>

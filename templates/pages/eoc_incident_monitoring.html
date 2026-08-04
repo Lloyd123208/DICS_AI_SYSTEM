@@ -5,6 +5,7 @@
 {% block title %}Incident Monitoring | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Incident Monitoring</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -91,8 +92,8 @@
     <div class="card-body p-4">
         <form method="GET" action="{{ url_for('eoc.eoc_incident_monitoring') }}" class="row g-3 align-items-end">
             <div class="col-12 col-sm-6 col-lg-4">
-                <label class="form-label text-muted small text-uppercase">Risk Level</label>
-                <select name="level" class="form-select">
+                <label class="form-label text-muted small text-uppercase" for="level">Risk Level</label>
+                <select id="level" name="level" class="form-select">
                     <option value="">All Levels</option>
                     {% for lvl in ['CRITICAL', 'HIGH', 'MODERATE', 'LOW'] %}
                         <option value="{{ lvl }}" {{ 'selected' if level_filter == lvl else '' }}>{{ lvl }}</option>
@@ -100,8 +101,8 @@
                 </select>
             </div>
             <div class="col-12 col-sm-6 col-lg-4">
-                <label class="form-label text-muted small text-uppercase">Hazard Type</label>
-                <select name="hazard" class="form-select">
+                <label class="form-label text-muted small text-uppercase" for="hazard">Hazard Type</label>
+                <select id="hazard" name="hazard" class="form-select">
                     <option value="">All Hazards</option>
                     {% for hz in hazard_types %}
                         <option value="{{ hz }}" {{ 'selected' if hazard_filter == hz else '' }}>{{ hz|upper }}</option>
@@ -109,8 +110,8 @@
                 </select>
             </div>
             <div class="col-12 col-sm-6 col-lg-4">
-                <label class="form-label text-muted small text-uppercase">Response Status</label>
-                <select name="status" class="form-select">
+                <label class="form-label text-muted small text-uppercase" for="status">Response Status</label>
+                <select id="status" name="status" class="form-select">
                     <option value="">All</option>
                     <option value="responded" {{ 'selected' if status_filter == 'responded' else '' }}>Has Active Response</option>
                     <option value="unresponded" {{ 'selected' if status_filter == 'unresponded' else '' }}>No Response Yet</option>

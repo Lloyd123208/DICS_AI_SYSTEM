@@ -3,6 +3,7 @@
 {% block title %}Response #{{ response.incident_id }} SitReps | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Response #{{ response.incident_id }} SitReps</h1>
 {% set active_tab = 'reports' %}
 {% include 'partials/response_header.html' %}
 
@@ -85,34 +86,34 @@
                     <form method="POST" action="{{ url_for('commander.create_situation_report', response_id=response.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
-                            <label class="form-label">Report Title <span class="text-danger">*</span></label>
-                            <input type="text" name="title" class="form-control" placeholder="e.g., Tactical Briefing, Sector B Progress" required>
+                            <label class="form-label" for="title">Report Title <span class="text-danger">*</span></label>
+                            <input id="title" type="text" name="title" class="form-control" placeholder="e.g., Tactical Briefing, Sector B Progress" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Report Type</label>
-                            <select name="report_type" class="form-select">
+                            <label class="form-label" for="report_type">Report Type</label>
+                            <select id="report_type" name="report_type" class="form-select">
                                 <option value="UPDATE" selected>Status Update (Routine)</option>
                                 <option value="ALERT">Emergency Alert (Critical)</option>
                                 <option value="MILESTONE">Operational Milestone</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Update Narrative <span class="text-danger">*</span></label>
-                            <textarea name="content" class="form-control" rows="5"
+                            <label class="form-label" for="content">Update Narrative <span class="text-danger">*</span></label>
+                            <textarea id="content" name="content" class="form-control" rows="5"
                                 placeholder="Describe the current operational status, weather updates, flood levels, rescue operations..." required></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Affected Areas</label>
-                            <input type="text" name="affected_areas" class="form-control" placeholder="e.g., Zone A Central, Bridge Area">
+                            <label class="form-label" for="affected_areas">Affected Areas</label>
+                            <input id="affected_areas" type="text" name="affected_areas" class="form-control" placeholder="e.g., Zone A Central, Bridge Area">
                         </div>
                         <div class="row mb-4">
                             <div class="col-6">
-                                <label class="form-label">New Casualties</label>
-                                <input type="number" name="casualties" class="form-control" min="0" placeholder="0">
+                                <label class="form-label" for="casualties">New Casualties</label>
+                                <input id="casualties" type="number" name="casualties" class="form-control" min="0" placeholder="0">
                             </div>
                             <div class="col-6">
-                                <label class="form-label">New Evacuations</label>
-                                <input type="number" name="evacuated" class="form-control" min="0" placeholder="0">
+                                <label class="form-label" for="evacuated">New Evacuations</label>
+                                <input id="evacuated" type="number" name="evacuated" class="form-control" min="0" placeholder="0">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-modern w-100 py-2 fw-bold"

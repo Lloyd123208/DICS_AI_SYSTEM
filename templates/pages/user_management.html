@@ -4,6 +4,7 @@
 {% block title %}Admin Panel | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Admin Panel</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -238,17 +239,17 @@
                                 <td data-label="Actions" class="text-center">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <!-- Edit Button -->
-                                        <button class="btn btn-sm btn-outline-primary" title="Edit User"
+                                        <button class="btn btn-sm btn-outline-primary" title="Edit User" aria-label="Edit user {{ user.username }}"
                                             onclick="openEditModal({{ user.id }}, '{{ user.username }}', '{{ user.full_name or '' }}', '{{ user.contact_number or '' }}', '{{ user.agency or '' }}', '{{ user.role }}')">
-                                            <i class="bi bi-pencil-fill"></i>
+                                            <i class="bi bi-pencil-fill" aria-hidden="true"></i>
                                         </button>
                                         <!-- Toggle Status -->
-                                        <form method="POST" action="/admin/users/{{ user.id }}/toggle" style="display:inline;">
+                                        <form method="POST" action="/admin/users/{{ user.id }}/toggle" style="display:inline;" data-confirm="{{ 'Enable' if user.is_disabled else 'Disable' }} user {{ user.username }}?" data-confirm-title="Update user access">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm {% if user.is_disabled %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
                                                 title="{{ 'Enable' if user.is_disabled else 'Disable' }} user"
-                                                onclick="return confirm('{{ 'Enable' if user.is_disabled else 'Disable' }} user {{ user.username }}?')">
-                                                <i class="bi {% if user.is_disabled %}bi-person-check-fill{% else %}bi-person-x-fill{% endif %}"></i>
+                                                aria-label="{{ 'Enable' if user.is_disabled else 'Disable' }} user {{ user.username }}">
+                                                <i class="bi {% if user.is_disabled %}bi-person-check-fill{% else %}bi-person-x-fill{% endif %}" aria-hidden="true"></i>
                                             </button>
                                         </form>
                                     </div>
@@ -278,30 +279,30 @@
                 <form method="POST" action="/admin/users/add">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-person me-1"></i>Username <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="username" placeholder="e.g. jdelacruz" required>
+                        <label class="form-label" for="username"><i class="bi bi-person me-1"></i>Username <span class="text-danger">*</span></label>
+                        <input id="username" type="text" class="form-control" name="username" placeholder="e.g. jdelacruz" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-envelope me-1"></i>Email <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" name="email" placeholder="email@example.com" required>
+                        <label class="form-label" for="email"><i class="bi bi-envelope me-1"></i>Email <span class="text-danger">*</span></label>
+                        <input id="email" type="email" class="form-control" name="email" placeholder="email@example.com" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-lock me-1"></i>Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" name="password" placeholder="Minimum 8 characters" required>
+                        <label class="form-label" for="password"><i class="bi bi-lock me-1"></i>Password <span class="text-danger">*</span></label>
+                        <input id="password" type="password" class="form-control" name="password" placeholder="Minimum 8 characters" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-card-text me-1"></i>Full Name</label>
-                        <input type="text" class="form-control" name="full_name" placeholder="Juan Dela Cruz">
+                        <label class="form-label" for="full_name"><i class="bi bi-card-text me-1"></i>Full Name</label>
+                        <input id="full_name" type="text" class="form-control" name="full_name" placeholder="Juan Dela Cruz">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-phone me-1"></i>Contact Number</label>
-                        <input type="tel" class="form-control" name="contact_number" placeholder="09XXXXXXXXX"
+                        <label class="form-label" for="contact_number"><i class="bi bi-phone me-1"></i>Contact Number</label>
+                        <input id="contact_number" type="tel" class="form-control" name="contact_number" placeholder="09XXXXXXXXX"
                                pattern="^(09\d{9}|\+639\d{9})$" inputmode="numeric"
                                oninput="this.value = this.value.replace(/[^0-9+]/g, '')" maxlength="13">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-building me-1"></i>Agency</label>
-                        <select class="form-select" name="agency">
+                        <label class="form-label" for="agency"><i class="bi bi-building me-1"></i>Agency</label>
+                        <select id="agency" class="form-select" name="agency">
                             <option value="">— Not Applicable —</option>
                             {% for a in agencies %}
                             <option value="{{ a.name }}">{{ a.name }}</option>
@@ -310,8 +311,8 @@
                         <small class="text-muted">Required for Agency Coordinator and Field Responder — this is how tasks assigned by a commander reach them.</small>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label"><i class="bi bi-shield me-1"></i>Role <span class="text-danger">*</span></label>
-                        <select class="form-select" name="role" required>
+                        <label class="form-label" for="role"><i class="bi bi-shield me-1"></i>Role <span class="text-danger">*</span></label>
+                        <select id="role" class="form-select" name="role" required>
                             <option value="citizen">Citizen</option>
                             <option value="field_responder">Field Responder</option>
                             <option value="agency_coordinator">Agency Coordinator</option>
@@ -516,21 +517,21 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" id="edit_user_id" name="user_id">
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-person me-1"></i>Username</label>
+                        <label class="form-label" for="edit_username"><i class="bi bi-person me-1"></i>Username</label>
                         <input type="text" class="form-control" id="edit_username" disabled style="opacity:0.6;">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-card-text me-1"></i>Full Name</label>
+                        <label class="form-label" for="edit_full_name"><i class="bi bi-card-text me-1"></i>Full Name</label>
                         <input type="text" class="form-control" id="edit_full_name" name="full_name" placeholder="Full name">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-phone me-1"></i>Contact Number</label>
+                        <label class="form-label" for="edit_contact"><i class="bi bi-phone me-1"></i>Contact Number</label>
                         <input type="tel" class="form-control" id="edit_contact" name="contact_number"
                                pattern="^(09\d{9}|\+639\d{9})$" inputmode="numeric"
                                oninput="this.value = this.value.replace(/[^0-9+]/g, '')" maxlength="13">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-building me-1"></i>Agency</label>
+                        <label class="form-label" for="edit_agency"><i class="bi bi-building me-1"></i>Agency</label>
                         <select class="form-select" id="edit_agency" name="agency">
                             <option value="">— Not Applicable —</option>
                             {% for a in agencies %}
@@ -540,7 +541,7 @@
                         <small class="text-muted">Required for Agency Coordinator and Field Responder — this is how tasks assigned by a commander reach them.</small>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label"><i class="bi bi-shield me-1"></i>Role</label>
+                        <label class="form-label" for="edit_role"><i class="bi bi-shield me-1"></i>Role</label>
                         <select class="form-select" id="edit_role" name="role">
                             <option value="citizen">Citizen</option>
                             <option value="field_responder">Field Responder</option>

@@ -7,6 +7,7 @@
 {% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Report Incident | DICS AI Citizen Portal</h1>
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -191,8 +192,9 @@
                                 </label>
 
                                 <div class="field-card">
-                                    <div class="photo-dropzone" id="photoDropzone" tabindex="0" role="button"
-                                         aria-label="Upload photo evidence">
+                                    <button type="button" class="photo-dropzone" id="photoDropzone"
+                                            aria-label="Upload photo evidence"
+                                            aria-describedby="photoDropzoneHint">
                                         <input type="file" class="visually-hidden" id="photo" name="photo" accept="image/*">
 
                                         <div class="photo-dropzone-empty" id="photoDropzoneEmpty">
@@ -200,7 +202,7 @@
                                                 <i class="bi bi-cloud-arrow-up-fill"></i>
                                             </div>
                                             <p class="mb-1 fw-semibold">Drag & drop a photo here</p>
-                                            <p class="text-muted small mb-0">or click to browse &middot; JPG, PNG, up to 10MB</p>
+                                            <p id="photoDropzoneHint" class="text-muted small mb-0">or click to browse · JPG, PNG, up to 10MB</p>
                                         </div>
 
                                         <div class="photo-dropzone-preview d-none" id="photoDropzonePreview">
@@ -218,7 +220,7 @@
                                 </div>
                             </div>
                             <div class="form-pair-field">
-                                <label class="form-label">
+                                <label class="form-label" for="gps_lat">
                                     <i class="bi bi-geo-alt me-2"></i>GPS Location
                                 </label>
                                 <input type="hidden" id="gps_lat" name="gps_lat">

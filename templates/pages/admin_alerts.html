@@ -5,6 +5,7 @@
 {% block title %}Incident Verification | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Incident Verification</h1>
 <div class="row">
     <div class="col-12">
 
@@ -212,10 +213,10 @@
                         <form method="post" action="{{ url_for('eoc.assign_commander', incident_id=incident.id) }}"
                               class="d-flex align-items-center gap-2 ms-auto flex-wrap">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <label style="font-size:.75rem;color:#9CA3AF;white-space:nowrap;margin-bottom:0;">
+                            <label style="font-size:.75rem;color:#9CA3AF;white-space:nowrap;margin-bottom:0;" for="commander_id">
                                 <i class="bi bi-person-badge me-1"></i>Assign Commander:
                             </label>
-                            <select name="commander_id"
+                            <select id="commander_id" name="commander_id"
                                 style="font-size:.78rem;padding:.3em .7em;border-radius:6px;background:rgba(255,255,255,0.05);color:#e5e7eb;border:1px solid rgba(255,255,255,0.15);min-width:150px;max-width:200px;">
                                 {% for c in commanders %}
                                 <option value="{{ c.id }}">{{ c.full_name or c.username }}</option>

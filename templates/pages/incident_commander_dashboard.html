@@ -5,6 +5,7 @@
 {% block title %}Incident Commander Center | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Incident Commander Center</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -21,6 +22,52 @@
                     </span>
                 </div>
                 <p class="text-muted mb-0 mt-2" style="padding-left:2.75rem;">Real-time incident response coordination and resource management.</p>
+
+                {% set live_incidents = total_active|int %}
+                <div class="status-banner mt-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-start gap-4">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="icon-badge icon-badge-danger">
+                                <i class="bi bi-activity"></i>
+                            </div>
+                            <div>
+                                <div class="status-label">Current priority</div>
+                                <div class="status-title">
+                                    {% if live_incidents > 0 %}
+                                        <span>{{ live_incidents }} active incident{{ 's' if live_incidents != 1 else '' }} are underway.</span>
+                                        <span class="status-pill status-pill-danger"><i class="bi bi-lightning-fill"></i> Active</span>
+                                    {% else %}
+                                        <span>No active incidents at this time.</span>
+                                        <span class="status-pill status-pill-success"><i class="bi bi-check-circle-fill"></i> Standby</span>
+                                    {% endif %}
+                                </div>
+                                <div class="status-detail">
+                                    {% if live_incidents > 0 %}
+                                        Focus on incident status, resource assignment, and the next operational task for your team.
+                                    {% else %}
+                                        Monitor incoming reports and keep response plans ready for rapid activation.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column gap-2 ms-auto align-items-stretch align-items-lg-end">
+                            {% if active_responses and active_responses|length > 0 %}
+                                <a href="{{ url_for('incident_commander.incident_response_detail', response_id=active_responses[0].id) }}" class="btn btn-primary-modern btn-modern px-4">Open Active Response</a>
+                            {% else %}
+                                <a href="{{ url_for('incident_commander.incident_response_reports', response_id=0) }}" class="btn btn-primary-modern btn-modern px-4">Review Incident Reports</a>
+                            {% endif %}
+                            <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
+                                {% if active_responses and active_responses|length > 0 %}
+                                    <a href="{{ url_for('incident_commander.incident_response_tasks', response_id=active_responses[0].id) }}" class="btn btn-outline-light btn-sm px-4">Review Tasks</a>
+                                    <a href="{{ url_for('incident_commander.incident_response_resources', response_id=active_responses[0].id) }}" class="btn btn-outline-light btn-sm px-4">Check Resources</a>
+                                {% else %}
+                                    <a href="#" class="btn btn-outline-light btn-sm px-4 disabled">Review Tasks</a>
+                                    <a href="#" class="btn btn-outline-light btn-sm px-4 disabled">Check Resources</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -191,10 +238,9 @@
                                 </td>
                                 <td><span class="text-muted small">{{ incident.created_at.strftime('%b %d, %H:%M') }}</span></td>
                                 <td class="text-center">
-                                    <form method="POST" action="{{ url_for('commander.activate_incident_response', incident_id=incident.id) }}" style="display:inline;">
+                                    <form method="POST" action="{{ url_for('commander.activate_incident_response', incident_id=incident.id) }}" style="display:inline;" data-confirm="Activate incident response for #{{ incident.id }}?" data-confirm-title="Activate response">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;font-weight:600;border-radius:6px;padding:0.35rem 0.75rem;"
-                                            onclick="return confirm('Activate incident response for #{{ incident.id }}?')">
+                                        <button type="submit" class="btn btn-sm" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;border:none;font-weight:600;border-radius:6px;padding:0.35rem 0.75rem;">
                                             <i class="bi bi-play-fill me-1"></i>Activate
                                         </button>
                                     </form>

@@ -3,6 +3,7 @@
 {% block title %}Response #{{ response.incident_id }} Timeline | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Response #{{ response.incident_id }} Timeline</h1>
 {% set active_tab = 'timeline' %}
 {% include 'partials/response_header.html' %}
 

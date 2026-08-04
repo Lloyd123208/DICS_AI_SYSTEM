@@ -3,6 +3,7 @@
 {% block title %}Comm Center | Agency Coordinator | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Comm Center | Agency Coordinator</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -99,8 +100,8 @@
                 <form method="POST" action="{{ url_for('coordinator.coordinator_submit_report') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Active Response</label>
-                        <select name="response_id" class="form-select form-select-sm" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="response_id">Active Response</label>
+                        <select id="response_id" name="response_id" class="form-select form-select-sm" required>
                             <option value="">— Select Response —</option>
                             {% for resp in active_responses %}
                                 <option value="{{ resp.id }}">#{{ resp.incident_id }} – {{ resp.incident.hazard_type }}</option>
@@ -108,8 +109,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Message Subject</label>
-                        <input type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Search Operation Update – Sector 3" required>
+                        <label class="form-label" style="font-size:0.82rem;" for="title">Message Subject</label>
+                        <input id="title" type="text" name="title" class="form-control form-control-sm" placeholder="e.g., Search Operation Update – Sector 3" required>
                     </div>
                     <div class="mb-3">
                         <div class="d-flex gap-2 flex-wrap mb-2">

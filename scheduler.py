@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 
 from services.realtime_data import get_weather_data, get_earthquake_data
-from ai.prediction import predict_hazard
+from ai.decision_support import predict_hazard
 from models import db, Incident
 
 # Earthquake severity is judged from real USGS magnitude readings, not the
-# rainfall/river/soil-moisture ML model (which was never trained on
-# earthquake data and has no meaningful relationship to seismic magnitude).
+# rainfall/river/soil-moisture AI decision support call (which has no
+# meaningful relationship to seismic magnitude).
 EARTHQUAKE_ALERT_MAGNITUDE = 4.5
 
 

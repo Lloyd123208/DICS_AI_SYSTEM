@@ -32,7 +32,7 @@
             <div class="card-body d-flex flex-row align-items-start justify-content-between" style="min-height: 120px;">
                 <div class="text-start" style="flex:1;">
                     <p class="text-muted small text-uppercase mb-1">Total Accounts</p>
-                    <h3 class="text-info fw-bold mb-0">{{ total_users }}</h3>
+                    <div class="h3 text-info fw-bold mb-0">{{ total_users }}</div>
                     <span class="small text-muted">{{ active_users }} active</span>
                 </div>
                 <div class="fs-4 text-info ms-2"><i class="bi bi-people-fill"></i></div>
@@ -45,7 +45,7 @@
             <div class="card-body d-flex flex-row align-items-start justify-content-between" style="min-height: 120px;">
                 <div class="text-start" style="flex:1;">
                     <p class="text-muted small text-uppercase mb-1">Disabled Accounts</p>
-                    <h3 class="text-secondary fw-bold mb-0">{{ disabled_users }}</h3>
+                    <div class="h3 text-secondary fw-bold mb-0">{{ disabled_users }}</div>
                     <span class="small text-muted">Suspended or locked</span>
                 </div>
                 <div class="fs-4 text-secondary ms-2"><i class="bi bi-person-x-fill"></i></div>
@@ -58,7 +58,7 @@
             <div class="card-body d-flex flex-row align-items-start justify-content-between" style="min-height: 120px;">
                 <div class="text-start" style="flex:1;">
                     <p class="text-muted small text-uppercase mb-1">Coordinators &amp; Commanders</p>
-                    <h3 class="text-warning fw-bold mb-0">{{ role_counts.get('agency_coordinator', 0) + role_counts.get('incident_commander', 0) }}</h3>
+                    <div class="h3 text-warning fw-bold mb-0">{{ role_counts.get('agency_coordinator', 0) + role_counts.get('incident_commander', 0) }}</div>
                     <span class="small text-muted">Operational leads registered</span>
                 </div>
                 <div class="fs-4 text-warning ms-2"><i class="bi bi-person-badge-fill"></i></div>
@@ -72,10 +72,10 @@
                 <div class="text-start" style="flex:1;">
                     <p class="text-muted small text-uppercase mb-1">Database Backup</p>
                     {% if last_backup_time %}
-                    <h3 class="text-primary fw-bold mb-0" style="font-size:1.4rem;">{{ last_backup_time.strftime('%b %d') }}</h3>
+                    <div class="h3 text-primary fw-bold mb-0" style="font-size:1.4rem;">{{ last_backup_time.strftime('%b %d') }}</div>
                     <span class="small text-muted">{{ backup_count }} retained</span>
                     {% else %}
-                    <h3 class="text-primary fw-bold mb-0" style="font-size:1.4rem;">None yet</h3>
+                    <div class="h3 text-primary fw-bold mb-0" style="font-size:1.4rem;">None yet</div>
                     <span class="small text-muted">No backups taken</span>
                     {% endif %}
                 </div>

@@ -4,6 +4,7 @@
 {% block title %}Resource Monitoring | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Resource Monitoring</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -100,8 +101,8 @@
 
                 <form method="GET" action="{{ url_for('eoc.eoc_resource_monitoring') }}" class="row g-3 align-items-end mb-4">
                     <div class="col-12 col-sm-6">
-                        <label class="form-label text-muted small text-uppercase">Status</label>
-                        <select name="status" class="form-select">
+                        <label class="form-label text-muted small text-uppercase" for="status">Status</label>
+                        <select id="status" name="status" class="form-select">
                             <option value="">All Statuses</option>
                             {% for st in ['DEPLOYED', 'AVAILABLE', 'RETURNING', 'UNAVAILABLE'] %}
                                 <option value="{{ st }}" {{ 'selected' if status_filter == st else '' }}>{{ st }}</option>
@@ -109,8 +110,8 @@
                         </select>
                     </div>
                     <div class="col-12 col-sm-6">
-                        <label class="form-label text-muted small text-uppercase">Agency</label>
-                        <select name="agency" class="form-select">
+                        <label class="form-label text-muted small text-uppercase" for="agency">Agency</label>
+                        <select id="agency" name="agency" class="form-select">
                             <option value="">All Agencies</option>
                             {% for ag in agencies %}
                                 <option value="{{ ag }}" {{ 'selected' if agency_filter == ag else '' }}>{{ ag }}</option>

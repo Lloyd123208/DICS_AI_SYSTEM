@@ -2,6 +2,7 @@
 {% block title %}Create Situation Report | DICS AI{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">Create Situation Report</h1>
 
 <!-- Header -->
 <div class="row mb-4">
@@ -56,13 +57,13 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Title <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control form-control-sm"
+                        <label class="form-label" style="font-size:0.82rem;" for="title">Report Title <span class="text-danger">*</span></label>
+                        <input id="title" type="text" name="title" class="form-control form-control-sm"
                                placeholder="e.g., Zone A Status Update, Evacuation Progress" required>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Type</label>
+                    <fieldset class="mb-3 form-group-fieldset">
+                        <legend>Report Type</legend>
                         <div class="d-flex gap-3 flex-wrap">
                             {% for rtype, icon, label, color in [('UPDATE','bi-clipboard-data','Status Update','#C4B5FD'),('ALERT','bi-exclamation-triangle-fill','Alert','#FCA5A5'),('MILESTONE','bi-check-circle-fill','Milestone','#86EFAC'),('CLOSURE','bi-lock-fill','Closure','#9CA3AF')] %}
                             <label style="cursor:pointer;font-size:0.82rem;color:{{ color }};">
@@ -70,28 +71,28 @@
                             </label>
                             {% endfor %}
                         </div>
-                    </div>
+                    </fieldset>
 
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Report Content <span class="text-danger">*</span></label>
-                        <textarea name="content" class="form-control form-control-sm" rows="6"
+                        <label class="form-label" style="font-size:0.82rem;" for="content">Report Content <span class="text-danger">*</span></label>
+                        <textarea id="content" name="content" class="form-control form-control-sm" rows="6"
                                   placeholder="Provide a detailed situation update — include current conditions, actions taken, challenges, and immediate needs..." required></textarea>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" style="font-size:0.82rem;">Affected Areas</label>
-                        <input type="text" name="affected_areas" class="form-control form-control-sm"
+                        <label class="form-label" style="font-size:0.82rem;" for="affected_areas">Affected Areas</label>
+                        <input id="affected_areas" type="text" name="affected_areas" class="form-control form-control-sm"
                                placeholder="e.g., Calamba City Zone A, Sto. Tomas North">
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.82rem;">Reported Casualties</label>
-                            <input type="number" name="casualties" class="form-control form-control-sm" min="0" placeholder="0">
+                            <label class="form-label" style="font-size:0.82rem;" for="casualties">Reported Casualties</label>
+                            <input id="casualties" type="number" name="casualties" class="form-control form-control-sm" min="0" placeholder="0">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label" style="font-size:0.82rem;">Persons Evacuated</label>
-                            <input type="number" name="evacuated" class="form-control form-control-sm" min="0" placeholder="0">
+                            <label class="form-label" style="font-size:0.82rem;" for="evacuated">Persons Evacuated</label>
+                            <input id="evacuated" type="number" name="evacuated" class="form-control form-control-sm" min="0" placeholder="0">
                         </div>
                     </div>
 

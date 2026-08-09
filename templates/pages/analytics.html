@@ -37,6 +37,16 @@
         </div>
         <p class="text-muted">Traditional disaster prediction systems rely heavily on historical data analysis and manual interpretation by experts. While these methods have been effective to some extent, they often lack real-time processing capabilities and may not be sufficient for rapidly changing environmental conditions. Recent advancements in Artificial Intelligence (AI) and Machine Learning (ML) have demonstrated strong potential in improving predictive accuracy by analyzing large-scale environmental datasets and identifying complex patterns that are not easily detected through conventional methods (UNDRR, 2023).</p>
         <p class="text-muted mb-0">This platform integrates an AI-Based Multi-Hazard Prediction Engine with the Digital Incident Command System (DICS) to provide near real-time forecasts, automated alert generation, and actionable insights for response teams. The engine ingests sensor streams, seismic and weather feeds, and historical records to deliver continuously updated risk scores and confidence metrics.</p>
+        <div class="alert alert-warning border-warning mt-3 mb-0" role="alert">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                <strong class="text-white">Aftershock module calibration caveat</strong>
+            </div>
+            <div class="small text-muted">
+                <div><span class="text-white">MVFS parameters:</span> <strong>Proxy model — not calibrated to this fault</strong></div>
+                <div><span class="text-white">Fault geometry:</span> <strong>Proxy model — not calibrated to this fault</strong></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -250,50 +260,6 @@
             </div>
         </div>
     </div>
-    <div class="col-xl-5">
-        <div class="card card-custom shadow-lg h-100">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center gap-2 mb-4">
-                    <div class="icon-badge" style="background:rgba(239,68,68,0.15);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3);">
-                        <i class="bi bi-activity"></i>
-                    </div>
-                    <h5 class="mb-0">Real-time Forecast Feed</h5>
-                    <span class="ms-auto text-muted small" style="font-style:italic;">Simulated</span>
-                </div>
-                <div id="forecastFeed" class="d-flex flex-column gap-2">
-                    <div class="forecast-feed-item" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.75rem 1rem;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong class="text-white">Flood</strong>
-                                <div class="small text-muted">Risk: High</div>
-                            </div>
-                            <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">82%</span>
-                        </div>
-                        <div class="small text-muted mt-1">Latest trigger from river sensor cluster 5.</div>
-                    </div>
-                    <div class="forecast-feed-item" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.75rem 1rem;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong class="text-white">Earthquake</strong>
-                                <div class="small text-muted">Risk: Moderate</div>
-                            </div>
-                            <span style="padding:0.3em 0.6em;background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">64%</span>
-                        </div>
-                        <div class="small text-muted mt-1">Seismic activity rose near Mount Banahaw.</div>
-                    </div>
-                    <div class="forecast-feed-item" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.75rem 1rem;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong class="text-white">Volcano</strong>
-                                <div class="small text-muted">Risk: Alert</div>
-                            </div>
-                            <span style="padding:0.3em 0.6em;background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);border-radius:6px;font-size:0.75em;font-weight:700;">78%</span>
-                        </div>
-                        <div class="small text-muted mt-1">Tremor readings are trending upward at Taal.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -305,7 +271,6 @@
 const refreshTime = document.getElementById('refreshTime');
 const hazardCtx = document.getElementById('hazardChart');
 const confidenceCtx = document.getElementById('confidenceChart');
-const feed = document.getElementById('forecastFeed');
 
 Chart.defaults.color = 'rgba(255,255,255,0.6)';
 Chart.defaults.borderColor = 'rgba(255,255,255,0.08)';
@@ -422,66 +387,23 @@ function renderAnalyticsData(data) {
 function fetchAnalyticsData() {
     fetch('/api/analytics-data')
         .then(response => response.ok ? response.json() : Promise.reject(response))
-        .then(renderAnalyticsData)
+        .then(data => {
+            renderAnalyticsData(data);
+            updateRefreshTime();
+        })
         .catch(() => {
             console.warn('Unable to load analytics data; falling back to server-rendered values.');
+            updateRefreshTime();
         });
 }
 
 fetchAnalyticsData();
-
-const realtimeEvents = [
-    { hazard: 'Flood', risk: 'High', score: 85, note: 'River sensor cluster 5 triggered.' },
-    { hazard: 'Earthquake', risk: 'Moderate', score: 66, note: 'Seismic tremors rising near fault line.' },
-    { hazard: 'Volcano', risk: 'Alert', score: 79, note: 'Tremor readings spiked at Taal.' },
-    { hazard: 'Flood', risk: 'Moderate', score: 72, note: 'Rainfall intensity increasing in lowlands.' },
-    { hazard: 'Earthquake', risk: 'High', score: 81, note: 'Multiple small quakes recorded in Laguna.' }
-];
-
-function badgeStyle(score) {
-    if (score > 75) return 'background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.5);';
-    if (score > 60) return 'background:rgba(245,158,11,0.2);color:#FCD34D;border:1px solid rgba(245,158,11,0.5);';
-    return 'background:rgba(16,185,129,0.2);color:#86EFAC;border:1px solid rgba(16,185,129,0.5);';
-}
 
 function updateRefreshTime() {
     const now = new Date();
     refreshTime.textContent = now.toLocaleTimeString();
 }
 
-function updateRealtimeData() {
-    const next = realtimeEvents[Math.floor(Math.random() * realtimeEvents.length)];
-    const newFeedItem = document.createElement('div');
-    newFeedItem.className = 'forecast-feed-item';
-    newFeedItem.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.75rem 1rem;';
-    newFeedItem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <strong class="text-white">${next.hazard}</strong>
-                <div class="small text-muted">Risk: ${next.risk}</div>
-            </div>
-            <span style="padding:0.3em 0.6em;border-radius:6px;font-size:0.75em;font-weight:700;${badgeStyle(next.score)}">${next.score}%</span>
-        </div>
-        <div class="small text-muted mt-1">${next.note}</div>
-    `;
-    feed.prepend(newFeedItem);
-    while (feed.children.length > 5) {
-        feed.removeChild(feed.lastChild);
-    }
-
-    confidenceChart.data.datasets[0].data.push(Math.min(100, Math.max(85, confidenceChart.data.datasets[0].data.slice(-1)[0] + (Math.random() * 4 - 2))));
-    if (confidenceChart.data.labels.length > 6) {
-        confidenceChart.data.labels.shift();
-        confidenceChart.data.datasets[0].data.shift();
-    }
-    const nextLabel = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    confidenceChart.data.labels.push(nextLabel);
-    confidenceChart.update();
-
-    updateRefreshTime();
-}
-
 updateRefreshTime();
-setInterval(updateRealtimeData, 5000);
 </script>
 {% endblock %}

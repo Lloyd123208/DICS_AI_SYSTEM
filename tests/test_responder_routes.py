@@ -4,14 +4,17 @@ import unittest
 from io import BytesIO
 from unittest.mock import patch
 
-os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+from PIL import Image
+
+os.environ.setdefault('SECRET_KEY', os.environ.get('SECRET_KEY') or 'development-secret')
 # CRITICAL: this must be set before `app` is imported. Flask-SQLAlchemy binds
 # and caches its engine the first time it's used; overriding
 # SQLALCHEMY_DATABASE_URI on the config *after* import is not reliable and
 # has previously caused the test suite to create/drop tables against the
-# real instance/database.db file instead of an isolated database. Forcing
-# an in-memory DB before import guarantees the real file is never touched.
-os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
+# real instance/database.db file instead of an isolated database. Use a
+# file-backed test DB so the schema is stable and reproducible before import.
+TEST_DB_PATH = os.path.abspath(os.path.join('instance', 'test_responder_routes.db'))
+os.environ.setdefault('DATABASE_URL', f'sqlite:///{TEST_DB_PATH}')
 
 from flask import render_template_string
 
@@ -29,7 +32,7 @@ def force_500():
 class ResponderRoutesTestCase(unittest.TestCase):
     def setUp(self):
         self.app = app
-        self.app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI='sqlite:///:memory:', WTF_CSRF_ENABLED=False)
+        self.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         self.client = self.app.test_client()
 
         with self.app.app_context():
@@ -45,6 +48,24 @@ class ResponderRoutesTestCase(unittest.TestCase):
             )
             db.session.add(user)
             db.session.commit()
+
+    def test_predict_hazard_fallback_contract_uses_insufficient_data(self):
+        from ai import decision_support
+
+        with patch('ai.decision_support.AI_PROVIDER', 'anthropic'), \
+             patch.dict(os.environ, {'ANTHROPIC_API_KEY': ''}, clear=False):
+            prediction = decision_support.predict_hazard(
+                'flood',
+                rainfall_mm=0,
+                river_level_m=None,
+                humidity_pct=0,
+                population_density=0,
+            )
+
+        self.assertEqual(prediction.get('level'), 'INSUFFICIENT_DATA')
+        self.assertTrue(prediction.get('degraded'))
+        self.assertFalse(prediction.get('alert'))
+        self.assertEqual(prediction.get('score'), 0.0)
 
     def test_field_responder_dashboard_requires_login(self):
         response = self.client.get('/responder-dashboard')
@@ -173,16 +194,23 @@ class ResponderRoutesTestCase(unittest.TestCase):
         with self.app.app_context():
             self.assertEqual(IncidentMessage.query.count(), 0)
 
+    def test_create_default_admin_requires_password_env(self):
+        with self.app.app_context():
+            os.environ.pop('ADMIN_PASSWORD', None)
+            with self.assertRaises(RuntimeError):
+                app_module.create_default_admin()
+
     def test_create_default_admin_uses_default_credentials(self):
         with self.app.app_context():
             existing = User(username='admin', email='admin@dics-ai.local', password='legacy', role='user')
             db.session.add(existing)
             db.session.commit()
 
+            os.environ['ADMIN_PASSWORD'] = 'test-admin-password'
             app_module.create_default_admin()
             admin = User.query.filter_by(username='admin').first()
             self.assertEqual(admin.role, 'admin')
-            self.assertTrue(app_module.check_password_hash(admin.password, 'Admin123!'))
+            self.assertTrue(app_module.check_password_hash(admin.password, 'test-admin-password'))
 
     def test_register_requires_minimum_password_length(self):
         response = self.client.post('/register', data={
@@ -267,6 +295,10 @@ class ResponderRoutesTestCase(unittest.TestCase):
             session['username'] = 'responder1'
             session['role'] = 'user'
 
+        image_stream = BytesIO()
+        Image.new('RGB', (1, 1), color='white').save(image_stream, format='JPEG')
+        image_stream.seek(0)
+
         response = self.client.post('/citizen-report', data={
             'hazard_type': 'flood',
             'severity': 'high',
@@ -278,7 +310,7 @@ class ResponderRoutesTestCase(unittest.TestCase):
             'gps_lat': '14.1234',
             'gps_lng': '121.5678',
             'anonymous': 'on',
-            'photo': (BytesIO(b'photo-data'), 'photo.jpg'),
+            'photo': (image_stream, 'photo.jpg'),
         }, content_type='multipart/form-data', follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -291,7 +323,8 @@ class ResponderRoutesTestCase(unittest.TestCase):
             self.assertIsNotNone(report.photo_filename)
             upload_response = self.client.get(f'/uploads/{report.photo_filename}')
             self.assertEqual(upload_response.status_code, 200)
-            self.assertIn(b'photo-data', upload_response.data)
+            self.assertGreater(len(upload_response.data), 0)
+            self.assertTrue(upload_response.data.startswith(b'\xff\xd8'))
 
     def test_citizen_report_rejects_invalid_photo_upload(self):
         with self.client.session_transaction() as session:
@@ -317,21 +350,66 @@ class ResponderRoutesTestCase(unittest.TestCase):
             self.assertEqual(CitizenReport.query.count(), 0)
             self.assertEqual(Incident.query.count(), 0)
 
+    def test_citizen_report_rejects_oversized_photo_upload(self):
+        with self.client.session_transaction() as session:
+            session['username'] = 'responder1'
+            session['role'] = 'user'
+
+        self.app.config['MAX_UPLOAD_SIZE_BYTES'] = 64
+
+        image_stream = BytesIO()
+        Image.new('RGB', (4, 4), color='white').save(image_stream, format='JPEG')
+        image_stream.seek(0)
+
+        response = self.client.post('/citizen-report', data={
+            'hazard_type': 'flood',
+            'severity': 'high',
+            'location': 'Barangay Test',
+            'description': 'Water rising',
+            'affected_people': '5',
+            'injuries': '0',
+            'contact': '09171234567',
+            'gps_lat': '14.1234',
+            'gps_lng': '121.5678',
+            'photo': (image_stream, 'photo.jpg', 'image/jpeg'),
+        }, content_type='multipart/form-data', follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Photo upload was invalid.', response.data)
+        with self.app.app_context():
+            self.assertEqual(CitizenReport.query.count(), 0)
+            self.assertEqual(Incident.query.count(), 0)
+
+    def test_citizen_report_rejects_photo_with_unsupported_mimetype(self):
+        with self.client.session_transaction() as session:
+            session['username'] = 'responder1'
+            session['role'] = 'user'
+
+        image_stream = BytesIO()
+        Image.new('RGB', (1, 1), color='white').save(image_stream, format='JPEG')
+        image_stream.seek(0)
+
+        response = self.client.post('/citizen-report', data={
+            'hazard_type': 'flood',
+            'severity': 'high',
+            'location': 'Barangay Test',
+            'description': 'Water rising',
+            'affected_people': '5',
+            'injuries': '0',
+            'contact': '09171234567',
+            'gps_lat': '14.1234',
+            'gps_lng': '121.5678',
+            'photo': (image_stream, 'photo.jpg', 'application/octet-stream'),
+        }, content_type='multipart/form-data', follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Photo upload was invalid.', response.data)
+        with self.app.app_context():
+            self.assertEqual(CitizenReport.query.count(), 0)
+            self.assertEqual(Incident.query.count(), 0)
+
     def test_map_pins_endpoint_returns_active_incidents_with_coordinates(self):
         with self.app.app_context():
-            incident = Incident(
-                user_id=1,
-                hazard_type='flood',
-                location='Barangay Test',
-                message='Water rising',
-                level='high',
-                alert=True,
-                status='ACTIVE',
-                reported_by='citizen',
-            )
-            db.session.add(incident)
-            db.session.commit()
-
             citizen_report = CitizenReport(
                 user_id=1,
                 hazard_type='flood',
@@ -343,6 +421,20 @@ class ResponderRoutesTestCase(unittest.TestCase):
                 anonymous=False,
             )
             db.session.add(citizen_report)
+            db.session.flush()
+
+            incident = Incident(
+                user_id=1,
+                hazard_type='flood',
+                location='Barangay Test',
+                message='Water rising',
+                level='high',
+                alert=True,
+                status='ACTIVE',
+                reported_by='citizen',
+                citizen_report_id=citizen_report.id,
+            )
+            db.session.add(incident)
             db.session.commit()
 
         with self.client.session_transaction() as session:
@@ -393,7 +485,7 @@ class ResponderRoutesTestCase(unittest.TestCase):
             'alert': True,
         }
 
-        with patch.object(scheduler, 'get_weather_data', return_value=weather_data), \
+        with patch.object(scheduler, 'get_all_weather_data', return_value={'Lipa': weather_data}), \
              patch.object(scheduler, 'predict_hazard', return_value=prediction):
             with self.app.app_context():
                 scheduler.monitor_hazards()
@@ -426,7 +518,7 @@ class ResponderRoutesTestCase(unittest.TestCase):
                 'alert': True,
             }
 
-        with patch.object(scheduler, 'get_weather_data', return_value=weather_data), \
+        with patch.object(scheduler, 'get_all_weather_data', return_value={'Lipa': weather_data}), \
              patch.object(scheduler, 'predict_hazard', side_effect=fake_predict_hazard):
             with self.app.app_context():
                 scheduler.monitor_hazards()
@@ -435,6 +527,31 @@ class ResponderRoutesTestCase(unittest.TestCase):
             incidents = Incident.query.filter(Incident.hazard_type.in_(['flood', 'landslide'])).all()
             self.assertEqual(len(incidents), 2)
             self.assertEqual({incident.hazard_type for incident in incidents}, {'flood', 'landslide'})
+
+    def test_api_realtime_data_returns_all_calabarzon_cities(self):
+        weather_data = {
+            'city': 'Cavite',
+            'temperature': 30,
+            'humidity': 70,
+            'pressure': 1009,
+            'wind_speed': 5,
+            'rainfall': 2,
+            'weather': 'sunny',
+            'fetched_at': 'now',
+        }
+
+        with patch.object(app_module, 'get_all_weather_data', return_value={'Cavite': weather_data}), \
+             patch.object(app_module, 'get_earthquake_data', return_value=[]):
+            with self.client.session_transaction() as session:
+                session['username'] = 'responder1'
+                session['role'] = 'field_responder'
+
+            response = self.client.get('/api/realtime-data')
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertIn('weather', data)
+            self.assertIn('earthquakes', data)
+            self.assertEqual(data['weather']['Cavite']['city'], 'Cavite')
 
     def test_post_incident_evaluation_saves_report_for_closed_response(self):
         with self.app.app_context():
@@ -578,6 +695,18 @@ class ResponderRoutesTestCase(unittest.TestCase):
             db.session.add(incident_response)
             db.session.commit()
             incident_response_id = incident_response.id
+
+            task = Task(
+                incident_response_id=incident_response_id,
+                assigned_to_agency='DILG',
+                assigned_by_id=coordinator_id,
+                title='Agency-owned task',
+                description='Supports coordinator report submission',
+                status='PENDING',
+                priority='MEDIUM',
+            )
+            db.session.add(task)
+            db.session.commit()
 
         response = self.client.post('/coordinator/reports/submit', data={
             'response_id': incident_response_id,

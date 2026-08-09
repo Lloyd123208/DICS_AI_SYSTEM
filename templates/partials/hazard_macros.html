@@ -23,6 +23,8 @@
     <span class="badge badge-high"><i class="bi bi-record-fill me-1"></i>HIGH</span>
     {%- elif l == 'moderate' or l == 'mod' -%}
     <span class="badge badge-mod"><i class="bi bi-record-fill me-1"></i>MOD</span>
+    {%- elif l in ['unknown', 'insufficient_data', 'insufficient-data', 'insufficient data'] -%}
+    <span class="badge badge-unknown"><i class="bi bi-question-circle-fill me-1"></i>UNKNOWN</span>
     {%- else -%}
     <span class="badge badge-low"><i class="bi bi-record-fill me-1"></i>LOW</span>
     {%- endif -%}

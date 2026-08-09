@@ -3,7 +3,7 @@
 
 import os
 
-os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+os.environ.setdefault('SECRET_KEY', os.environ.get('SECRET_KEY') or 'development-secret')
 
 from app import app, db
 from models import Incident, User

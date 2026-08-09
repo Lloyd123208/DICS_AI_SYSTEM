@@ -1,7 +1,7 @@
 import os
 import unittest
 
-os.environ['SECRET_KEY'] = 'test-secret'
+os.environ.setdefault('SECRET_KEY', os.environ.get('SECRET_KEY') or 'development-secret')
 
 from tests.test_responder_routes import ResponderRoutesTestCase
 

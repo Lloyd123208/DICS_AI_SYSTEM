@@ -110,8 +110,8 @@
                     <div class="col-6 col-md-3">
                         <div style="padding:0.85rem;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:8px;text-align:center;">
                             <i class="bi bi-moisture text-warning fs-4 d-block mb-1"></i>
-                            <div class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;">Soil Moisture</div>
-                            <strong class="text-white">{{ response.incident.soil_moisture_pct }}%</strong>
+                            <div class="text-muted" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;">Humidity</div>
+                            <strong class="text-white">{{ response.incident.humidity_pct }}%</strong>
                         </div>
                     </div>
                     <div class="col-6 col-md-3">
@@ -215,6 +215,7 @@
         </div>
         {% if response.status in ['CLOSED', 'RESOLVED'] %}
             <form method="post" action="{{ url_for('commander.post_incident_evaluation', response_id=response.id) }}" class="row g-3">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="col-12">
                     <label class="form-label" for="lessons_learned">Lessons learned</label>
                     <textarea id="lessons_learned" class="form-control" name="lessons_learned" rows="4" placeholder="What went well or what should improve?">{{ (post_incident_report.lessons_learned if post_incident_report else '') }}</textarea>

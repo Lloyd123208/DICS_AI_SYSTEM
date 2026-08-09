@@ -82,7 +82,10 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row g-3 font-monospace text-muted small">
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold" for="hazard_type">Target Hazard Index Classification</label>
+                            <label class="form-label text-uppercase fw-bold" for="hazard_type">
+                                Target Hazard Index Classification
+                                <span class="quality-badge quality-live">LIVE</span>
+                            </label>
                             <select id="hazard_type" class="form-select text-white font-monospace" name="hazard_type">
                                 <option value="flood">FLOOD HYDROLOGIC MATRIX</option>
                                 <option value="landslide">LANDSLIDE SLOPE SHEAR VECTOR</option>
@@ -90,15 +93,31 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold" for="rainfall">Precipitation Gauge Accumulation (mm)</label>
+                            <label class="form-label text-uppercase fw-bold" for="rainfall">
+                                Precipitation Gauge Accumulation (mm)
+                                <span class="quality-badge quality-live">LIVE</span>
+                            </label>
                             <input id="rainfall" class="form-control text-info font-monospace" type="number" name="rainfall" min="0" step="0.1" placeholder="0.0" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold" for="river_level">River Level Stage Gauge Threshold (m)</label>
+                            <label class="form-label text-uppercase fw-bold" for="river_level">
+                                River Level Stage Gauge Threshold (m)
+                                <span class="quality-badge quality-unavailable">UNAVAILABLE</span>
+                            </label>
                             <input id="river_level" class="form-control text-info font-monospace" type="number" name="river_level" min="0" step="0.1" placeholder="0.0" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-uppercase fw-bold" for="population_density">Grid Square Population Density Metrics</label>
+                            <label class="form-label text-uppercase fw-bold" for="humidity_pct">
+                                Atmospheric Humidity (OpenWeather humidity %)
+                                <span class="quality-badge quality-proxy">PROXY</span>
+                            </label>
+                            <input id="humidity_pct" class="form-control text-info font-monospace" type="number" name="humidity_pct" min="0" max="100" step="1" placeholder="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-uppercase fw-bold" for="population_density">
+                                Grid Square Population Density Metrics
+                                <span class="quality-badge quality-estimated">ESTIMATED</span>
+                            </label>
                             <input id="population_density" class="form-control text-info font-monospace" type="number" name="population_density" min="0" step="1" placeholder="0" required>
                         </div>
                     </div>
@@ -119,6 +138,8 @@
                     <span class="badge bg-primary text-uppercase px-2 py-1">INDEX: {{ prediction.type }}</span>
                     {% if prediction.alert %}
                         <span class="badge badge-high text-uppercase px-2 py-1">CRITICAL ALARM ACTIVATED</span>
+                    {% elif prediction.level|upper in ['UNKNOWN', 'INSUFFICIENT_DATA', 'INSUFFICIENT DATA', 'INSUFFICIENT-DATA'] %}
+                        <span class="badge badge-unknown text-uppercase px-2 py-1">STATUS: {{ prediction.level }}</span>
                     {% else %}
                         <span class="badge badge-low text-uppercase px-2 py-1">STATUS: {{ prediction.level }}</span>
                     {% endif %}

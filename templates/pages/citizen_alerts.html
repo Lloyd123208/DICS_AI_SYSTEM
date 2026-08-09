@@ -73,7 +73,9 @@
                         <div class="vstack gap-3">
                             {% for alert in alerts %}
                                 <div style="padding: 1rem; border-radius: 8px;
-                                    {% if alert.level|lower == 'high' %}
+                                    {% if alert.level|lower in ['unknown','insufficient_data','insufficient-data','insufficient data'] %}
+                                        background: rgba(148, 163, 184, 0.08); border-left: 3px solid #94A3B8;
+                                    {% elif alert.level|lower == 'high' %}
                                         background: rgba(239, 68, 68, 0.08); border-left: 3px solid #EF4444;
                                     {% elif alert.level|lower == 'moderate' %}
                                         background: rgba(245, 158, 11, 0.08); border-left: 3px solid #F59E0B;
@@ -84,7 +86,11 @@
                                     <div class="d-flex align-items-start justify-content-between gap-3">
                                         <div class="flex-grow-1">
                                             <div class="d-flex align-items-center gap-2 mb-2">
-                                                {% if alert.level|lower == 'high' %}
+                                                {% if alert.level|lower in ['unknown','insufficient_data','insufficient-data','insufficient data'] %}
+                                                    <span class="badge badge-unknown">
+                                                        <i class="bi bi-question-circle-fill me-1"></i>UNKNOWN
+                                                    </span>
+                                                {% elif alert.level|lower == 'high' %}
                                                     <span class="badge badge-high">
                                                         <i class="bi bi-exclamation-octagon-fill me-1"></i>CRITICAL
                                                     </span>

@@ -91,12 +91,41 @@
                         </div>
 
                         <div class="mb-4">
-                            <label for="location" class="form-label">
-                                <i class="bi bi-geo-alt me-2"></i>Location (Barangay/Area)
+                            <label class="form-label">
+                                <i class="bi bi-geo-alt me-2"></i>Location
                             </label>
-                            <input type="text" class="form-control" id="location" name="location" 
-                                   placeholder="e.g., Barangay Santo Tomas" required>
-                            <div class="invalid-feedback">Please enter your barangay or area.</div>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="province_id" class="form-label small">Province</label>
+                                    <select class="form-select" id="province_id" name="province_id">
+                                        <option value="">Select province</option>
+                                        {% for province in provinces %}
+                                        <option value="{{ province.id }}">{{ province.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="municipality_id" class="form-label small">Municipality</label>
+                                    <select class="form-select" id="municipality_id" name="municipality_id">
+                                        <option value="">Select municipality</option>
+                                        {% for municipality in municipalities %}
+                                        <option value="{{ municipality.id }}">{{ municipality.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="barangay_id" class="form-label small">Barangay</label>
+                                    <select class="form-select" id="barangay_id" name="barangay_id">
+                                        <option value="">Select barangay</option>
+                                        {% for barangay in barangays %}
+                                        <option value="{{ barangay.id }}">{{ barangay.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <input type="text" class="form-control mt-3" id="location" name="location"
+                                   placeholder="e.g., Near the market or along the river" required>
+                            <div class="invalid-feedback">Please enter a nearby landmark or area.</div>
                         </div>
 
                         <div class="mb-4">

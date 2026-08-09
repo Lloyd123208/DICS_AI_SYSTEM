@@ -11,8 +11,10 @@ from flask_limiter.util import get_remote_address
 
 from models import db, User, Incident, IncidentResponse, Task, Resource, CitizenReport, Agency, PostIncidentReport
 from scheduler import monitor_hazards
-from services.realtime_data import get_weather_data, get_earthquake_data
+from services.realtime_data import get_all_weather_data, get_weather_data, get_earthquake_data
+from services import permissions as permission_service
 from ai.decision_support import predict_hazard
+from seed.demo_data import seed_geography_data
 
 from blueprints.admin import admin_bp
 from blueprints.commander import (
@@ -64,10 +66,24 @@ instance_dir = os.path.join(base_dir, 'instance')
 os.makedirs(instance_dir, exist_ok=True)
 upload_dir = os.path.join(instance_dir, 'uploads', 'citizen_reports')
 os.makedirs(upload_dir, exist_ok=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-    'DATABASE_URL',
-    f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
-)
+
+def _normalize_database_url():
+    configured_url = os.environ.get('DATABASE_URL')
+    if not configured_url:
+        configured_url = f"sqlite:///{os.path.join(instance_dir, 'database.db').replace('\\', '/')}"
+
+    # Flask-SQLAlchemy/SQLAlchemy can misinterpret relative sqlite paths like
+    # 'sqlite:///instance/database.db' when the runtime CWD differs from the
+    # project root. Resolve them against the project base directory instead.
+    if configured_url.startswith('sqlite:///') and not configured_url.startswith('sqlite:////'):
+        relative_path = configured_url[len('sqlite:///'):]
+        if relative_path:
+            normalized_path = os.path.normpath(os.path.join(base_dir, relative_path))
+            configured_url = f"sqlite:///{normalized_path.replace('\\', '/')}"
+
+    return configured_url
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _normalize_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 _secret_key = os.environ.get('SECRET_KEY')
 if not _secret_key:
@@ -85,7 +101,8 @@ app.config['SECRET_KEY'] = _secret_key
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['INSTANCE_DIR'] = instance_dir
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['MAX_UPLOAD_SIZE_BYTES'] = int(os.environ.get('MAX_UPLOAD_SIZE_BYTES', 16 * 1024 * 1024))
+app.config['MAX_CONTENT_LENGTH'] = app.config['MAX_UPLOAD_SIZE_BYTES']
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['SCHEDULER_API_ENABLED'] = True
 app.config['SCHEDULER_TIMEZONE'] = 'UTC'
@@ -222,6 +239,8 @@ def migrate_user_table():
             columns = [row[1] for row in cursor.fetchall()]
             if 'location' not in columns:
                 cursor.execute("ALTER TABLE incident ADD COLUMN location VARCHAR(255)")
+            if 'citizen_report_id' not in columns:
+                cursor.execute("ALTER TABLE incident ADD COLUMN citizen_report_id INTEGER")
             conn.commit()
 
 
@@ -322,7 +341,12 @@ def migrate_incident_commander_tables():
 
 
 def create_default_admin():
-    admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin123!')
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if not admin_password:
+        raise RuntimeError(
+            'ADMIN_PASSWORD must be set before startup. The application cannot create or update the admin account without an environment-provided password.'
+        )
+
     admin = User.query.filter_by(username='admin').first()
     if admin is None:
         admin = User.query.filter_by(email='admin@dics-ai.local').first()
@@ -357,6 +381,7 @@ def create_default_admin():
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'Unable to create default admin: {e}')
+        raise
 
 
 def seed_agencies():
@@ -391,6 +416,7 @@ def create_tables():
         migrate_incident_commander_tables()
         create_default_admin()
         seed_agencies()
+        seed_geography_data()
 
 
 _init_attempted = False
@@ -407,9 +433,11 @@ def lazy_init():
             migrate_user_table()
             create_default_admin()
             seed_agencies()
+            seed_geography_data()
             app.logger.info('Database initialized successfully')
     except Exception as e:
         app.logger.error(f'Database initialization error: {e}')
+        raise
 
 
 @app.before_request
@@ -618,16 +646,10 @@ def get_map_pins():
         if not is_active:
             continue
 
-        report = None
-        if incident.user_id is not None:
-            report = CitizenReport.query.filter(
-                CitizenReport.user_id == incident.user_id,
-                CitizenReport.location == incident.location,
-                CitizenReport.hazard_type == incident.hazard_type,
-            ).order_by(CitizenReport.created_at.desc()).first()
-
+        report = incident.citizen_report
         if report is None:
             report = CitizenReport.query.filter(
+                CitizenReport.user_id == incident.user_id,
                 CitizenReport.location == incident.location,
                 CitizenReport.hazard_type == incident.hazard_type,
             ).order_by(CitizenReport.created_at.desc()).first()
@@ -667,7 +689,7 @@ def serve_upload(filename):
 def get_realtime_data():
     if 'username' not in session:
         return {'error': 'Unauthorized'}, 401
-    weather_data = get_weather_data('Cavite')
+    weather_data = get_all_weather_data()
     earthquake_data = get_earthquake_data()
     return {'weather': weather_data, 'earthquakes': earthquake_data}
 
@@ -761,18 +783,21 @@ def live_prediction():
         return {'error': 'Unauthorized'}, 401
     if not os.getenv('OPENWEATHER_API_KEY'):
         return {'error': 'OPENWEATHER_API_KEY is not configured.'}
-    weather_data = get_weather_data('Cavite')
+
+    city = request.args.get('city', 'Cavite')
+    weather_data = get_weather_data(city)
     if not weather_data:
-        return {'error': 'Could not fetch weather data.'}
-    rainfall = weather_data.get('rainfall', 0) or 0
-    river_level = rainfall / 10.0
-    soil_moisture = weather_data.get('humidity', 0) or 0
+        return {'error': f'Could not fetch weather data for {city}.'}, 404
+
+    rainfall = float(weather_data.get('rainfall', 0) or 0)
+    river_level = round(min(15.0, max(0.0, rainfall / 10.0)), 2)
+    humidity_pct = float(weather_data.get('humidity', 0) or 0)
     population_density = 1200
     prediction = predict_hazard(
         hazard_type='flood',
         rainfall_mm=rainfall,
         river_level_m=river_level,
-        soil_moisture_pct=soil_moisture,
+        humidity_pct=humidity_pct,
         population_density=population_density,
     )
     return prediction
@@ -782,13 +807,11 @@ def live_prediction():
 def analytics():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    # Analytics restricted to Admin and EOC Staff (system-wide monitoring)
-    allowed_roles = ['admin', 'eoc_staff']
-    if session.get('role') not in allowed_roles:
+
+    if not permission_service.is_admin() and not permission_service.is_eoc():
         flash('You do not have permission to access analytics. Only admins and EOC staff can view system analytics.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     total_incidents = db.session.query(Incident).count()
     avg_score = db.session.query(db.func.avg(Incident.score)).scalar() or 0
     active_responses = db.session.query(IncidentResponse).filter(IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])).count()
@@ -805,13 +828,11 @@ def analytics():
 def hazard_map():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    # Hazard Map accessible to all authenticated operational and citizen roles
-    allowed_roles = ['admin', 'agency_coordinator', 'incident_commander', 'eoc_staff', 'field_responder', 'citizen']
-    if session.get('role') not in allowed_roles:
+
+    if not permission_service.has_any_role('ADMIN', 'COORDINATOR', 'COMMANDER', 'EOC', 'RESPONDER', 'CITIZEN'):
         flash('You do not have permission to view the hazard map.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('pages/hazard_map.html', sidebar_variant='hazard')
 
 
@@ -819,13 +840,11 @@ def hazard_map():
 def ics_page():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    # ICS structure only for Admin and Incident Commanders
-    allowed_roles = ['admin', 'incident_commander']
-    if session.get('role') not in allowed_roles:
+
+    if not permission_service.has_any_role('ADMIN', 'COMMANDER'):
         flash('You do not have permission to access the Incident Command System. Only admins and incident commanders can view this.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('pages/ics.html')
 
 
@@ -833,13 +852,11 @@ def ics_page():
 def protocols():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
-    # Protocols accessible to Admin and Incident Commanders
-    allowed_roles = ['admin', 'incident_commander']
-    if session.get('role') not in allowed_roles:
+
+    if not permission_service.has_any_role('ADMIN', 'COMMANDER'):
         flash('You do not have permission to access ICS protocols. Only admins and incident commanders can view this.', 'danger')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('pages/protocols.html')
 
 

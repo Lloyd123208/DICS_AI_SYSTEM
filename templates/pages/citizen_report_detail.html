@@ -98,6 +98,7 @@
                 <div class="fw-bold
                   {% if incident.level|lower in ['high','critical'] %}text-danger
                   {% elif incident.level|lower == 'moderate' %}text-warning
+                  {% elif incident.level|lower in ['unknown','insufficient_data','insufficient-data','insufficient data'] %}text-secondary
                   {% else %}text-success{% endif %}">
                   {{ incident.level|upper if incident.level else (citizen_rep.severity|upper if citizen_rep else 'N/A') }}
                 </div>

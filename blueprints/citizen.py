@@ -6,10 +6,71 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
-from models import db, User, Incident, CitizenReport
+from models import Barangay, Municipality, Province, db, User, Incident, CitizenReport
 from services.realtime_data import get_earthquake_data
 
 citizen_bp = Blueprint('citizen', __name__)
+
+ALLOWED_PHOTO_EXTENSIONS = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+}
+ALLOWED_PHOTO_MIME_TYPES = set(ALLOWED_PHOTO_EXTENSIONS.values())
+ALLOWED_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+
+
+def _validate_photo_upload(photo_file):
+    if not photo_file or not getattr(photo_file, 'filename', None):
+        return None
+
+    filename = secure_filename(photo_file.filename)
+    if not filename:
+        return None
+
+    ext = os.path.splitext(filename)[1].lower()
+    expected_mime = ALLOWED_PHOTO_EXTENSIONS.get(ext)
+    if not expected_mime:
+        return None
+
+    mimetype = (photo_file.mimetype or '').lower()
+    if mimetype not in ALLOWED_PHOTO_MIME_TYPES or mimetype != expected_mime:
+        return None
+
+    max_bytes = current_app.config.get('MAX_UPLOAD_SIZE_BYTES')
+    if max_bytes is None:
+        max_bytes = current_app.config.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024)
+
+    image_bytes = photo_file.read()
+    if not image_bytes:
+        return None
+    if len(image_bytes) > max_bytes:
+        return None
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            actual_format = image.format
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return None
+
+    if actual_format not in ALLOWED_IMAGE_FORMATS:
+        return None
+
+    return image_bytes, filename, ext
+
+
+def _is_safe_upload_directory(upload_dir):
+    if not upload_dir:
+        return False
+
+    abs_upload_dir = os.path.abspath(upload_dir)
+    static_dir = os.path.abspath(current_app.static_folder) if current_app.static_folder else None
+    if static_dir and os.path.commonpath([abs_upload_dir, static_dir]) == static_dir:
+        return False
+
+    return True
 
 
 @citizen_bp.route('/citizen-report', methods=['GET', 'POST'])
@@ -20,6 +81,10 @@ def citizen_report():
     user = User.query.filter_by(username=session['username']).first()
     if not user:
         return redirect(url_for('logout'))
+
+    provinces = Province.query.order_by(Province.name).all()
+    municipalities = Municipality.query.order_by(Municipality.name).all()
+    barangays = Barangay.query.order_by(Barangay.name).all()
 
     if request.method == 'POST':
         hazard_type = request.form.get('hazard_type', '').strip()
@@ -32,30 +97,26 @@ def citizen_report():
         anonymous = request.form.get('anonymous') == 'on'
         gps_latitude = request.form.get('gps_lat', '').strip()
         gps_longitude = request.form.get('gps_lng', '').strip()
+        province_id = request.form.get('province_id', type=int)
+        municipality_id = request.form.get('municipality_id', type=int)
+        barangay_id = request.form.get('barangay_id', type=int)
 
         photo_filename = None
         photo_file = request.files.get('photo')
         if photo_file and photo_file.filename:
-            allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp'}
-            filename = secure_filename(photo_file.filename)
-            ext = os.path.splitext(filename)[1].lower()
-            if not filename or ext not in allowed_extensions:
+            validated_photo = _validate_photo_upload(photo_file)
+            if not validated_photo:
                 flash('Photo upload was invalid.', 'error')
                 return redirect(url_for('citizen.citizen_report'))
 
-            try:
-                image_bytes = photo_file.read()
-                if not image_bytes:
-                    raise UnidentifiedImageError('Empty image upload')
-                with Image.open(BytesIO(image_bytes)) as image:
-                    image.verify()
-            except (UnidentifiedImageError, OSError, ValueError):
-                flash('Photo upload was invalid.', 'error')
-                return redirect(url_for('citizen.citizen_report'))
-
+            image_bytes, _, ext = validated_photo
             upload_dir = current_app.config['UPLOAD_FOLDER']
+            if not _is_safe_upload_directory(upload_dir):
+                flash('Photo upload was invalid.', 'error')
+                return redirect(url_for('citizen.citizen_report'))
+
             os.makedirs(upload_dir, exist_ok=True)
-            stored_name = f"{secrets.token_hex(8)}_{filename}"
+            stored_name = f"{secrets.token_hex(8)}{ext}"
             photo_path = os.path.join(upload_dir, stored_name)
             with open(photo_path, 'wb') as output_file:
                 output_file.write(image_bytes)
@@ -80,9 +141,15 @@ def citizen_report():
                 contact=contact,
                 gps_latitude=gps_latitude_value,
                 gps_longitude=gps_longitude_value,
+                province_id=province_id,
+                municipality_id=municipality_id,
+                barangay_id=barangay_id,
                 anonymous=anonymous,
                 photo_filename=photo_filename,
             )
+            db.session.add(citizen_report)
+            db.session.flush()
+
             incident = Incident(
                 user_id=user.id,
                 hazard_type=hazard_type,
@@ -92,8 +159,13 @@ def citizen_report():
                 alert=False,
                 status='NEW',
                 reported_by='citizen',
+                province_id=province_id,
+                municipality_id=municipality_id,
+                barangay_id=barangay_id,
+                latitude=gps_latitude_value,
+                longitude=gps_longitude_value,
+                citizen_report_id=citizen_report.id,
             )
-            db.session.add(citizen_report)
             db.session.add(incident)
             try:
                 db.session.commit()
@@ -110,7 +182,14 @@ def citizen_report():
     total_incidents = len(incidents)
     pending_count = sum(1 for i in incidents if not i.alert)
 
-    return render_template('pages/citizen_report.html', total_incidents=total_incidents, pending_count=pending_count)
+    return render_template(
+        'pages/citizen_report.html',
+        total_incidents=total_incidents,
+        pending_count=pending_count,
+        provinces=provinces,
+        municipalities=municipalities,
+        barangays=barangays,
+    )
 
 
 @citizen_bp.route('/citizen-dashboard')
@@ -196,10 +275,12 @@ def citizen_report_detail(incident_id):
         return redirect(url_for('citizen.citizen_status'))
 
     # Get matching CitizenReport for photo and GPS details
-    citizen_rep = CitizenReport.query.filter_by(
-        user_id=user.id,
-        location=incident.location
-    ).order_by(CitizenReport.created_at.desc()).first()
+    citizen_rep = incident.citizen_report
+    if citizen_rep is None:
+        citizen_rep = CitizenReport.query.filter_by(
+            user_id=user.id,
+            location=incident.location
+        ).order_by(CitizenReport.created_at.desc()).first()
 
     return render_template(
         'pages/citizen_report_detail.html',

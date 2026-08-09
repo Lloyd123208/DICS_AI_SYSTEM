@@ -3,6 +3,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 from models import db, User, Incident
 from services.realtime_data import get_earthquake_data
 from ai.decision_support import predict_hazard
+from services import permissions as permission_service
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -11,10 +12,9 @@ ai_bp = Blueprint('ai', __name__)
 def ai_prediction():
     if 'username' not in session:
         return redirect(url_for('login'))
-    
+
     # Restrict to operational roles only: Incident Commanders, EOC Staff, and Coordinators
-    allowed_roles = ['incident_commander', 'eoc_staff', 'agency_coordinator', 'admin']
-    if session.get('role') not in allowed_roles:
+    if not permission_service.has_any_role('COMMANDER', 'EOC', 'COORDINATOR', 'ADMIN'):
         flash('You do not have permission to run hazard predictions. Only incident commanders, EOC staff, and coordinators can perform this action.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -24,14 +24,14 @@ def ai_prediction():
         hazard_type = request.form.get('hazard_type')
         rainfall = float(request.form.get('rainfall') or 0)
         river_level = float(request.form.get('river_level') or 0)
-        soil_moisture = float(request.form.get('soil_moisture') or 0)
+        humidity_pct = float(request.form.get('humidity_pct') or 0)
         population_density = float(request.form.get('population_density') or 0)
 
         prediction = predict_hazard(
             hazard_type=hazard_type,
             rainfall_mm=rainfall,
             river_level_m=river_level,
-            soil_moisture_pct=soil_moisture,
+            humidity_pct=humidity_pct,
             population_density=population_density,
             earthquake_data=earthquake_data,
         )
@@ -43,7 +43,7 @@ def ai_prediction():
                 hazard_type=hazard_type,
                 rainfall_mm=rainfall,
                 river_level_m=river_level,
-                soil_moisture_pct=soil_moisture,
+                humidity_pct=humidity_pct,
                 population_density=population_density,
                 score=prediction.get('score'),
                 level=prediction.get('level'),

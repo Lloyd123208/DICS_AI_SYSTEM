@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,15 +12,48 @@ from pathlib import Path
 
 # Simple in-memory cache for API responses (reduces duplicate calls)
 _cache = {
-    'weather': {'data': None, 'timestamp': None},
+    'weather': {},
     'earthquakes': {'data': None, 'timestamp': None}
 }
 _cache_duration = 300  # 5 minutes
 CALABARZON_CITIES = {
-    'lipa', 'batangas', 'tanauan', 'calamba', 'san pablo', 'lucena',
-    'tagaytay', 'imus', 'dasmariñas', 'cavite', 'taytay', 'antipolo',
-    'quezon', 'rizal', 'carmona', 'alaminos', 'nagcarlan', 'san fernando'
+    'lipa': 'Lipa',
+    'batangas': 'Batangas',
+    'tanauan': 'Tanauan',
+    'calamba': 'Calamba',
+    'san pablo': 'San Pablo',
+    'lucena': 'Lucena',
+    'tagaytay': 'Tagaytay',
+    'imus': 'Imus',
+    'dasmariñas': 'Dasmariñas',
+    'cavite': 'Cavite',
+    'taytay': 'Taytay',
+    'antipolo': 'Antipolo',
+    'quezon': 'Quezon',
+    'rizal': 'Rizal',
+    'carmona': 'Carmona',
+    'alaminos': 'Alaminos',
+    'nagcarlan': 'Nagcarlan',
+    'san fernando': 'San Fernando',
 }
+
+
+def _canonical_city_key(city):
+    if not city:
+        return None
+    normalized = city.strip().lower().replace('ñ', 'n')
+    for key in CALABARZON_CITIES:
+        if key.replace('ñ', 'n') == normalized:
+            return key
+    return None
+
+
+def get_all_weather_data():
+    """Fetch current weather for every Calabarzon city in the supported list."""
+    return {
+        display_name: get_weather_data(city_key)
+        for city_key, display_name in CALABARZON_CITIES.items()
+    }
 
 # Approximate Calabarzon bounding box (Luzon, Philippines)
 CALABARZON_BBOX = {
@@ -75,11 +109,12 @@ def get_weather_data(city="Lipa"):
     Only returns data for Calabarzon locations.
     Uses in-memory cache to reduce API calls.
     """
-    if city.lower() not in CALABARZON_CITIES:
+    canonical_city = _canonical_city_key(city)
+    if not canonical_city:
         return None
 
     # Check cache first
-    cached = _cache.get('weather')
+    cached = _cache['weather'].get(canonical_city)
     if cached and cached['data'] is not None and cached['timestamp'] is not None:
         if datetime.utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
             return cached['data']
@@ -88,10 +123,12 @@ def get_weather_data(city="Lipa"):
     if not api_key:
         return None
 
-    url = (
-        f"https://api.openweathermap.org/data/2.5/weather"
-        f"?q={city},PH&appid={api_key}&units=metric"
-    )
+    params = {
+        'q': f"{canonical_city},PH",
+        'appid': api_key,
+        'units': 'metric',
+    }
+    url = f"https://api.openweathermap.org/data/2.5/weather?{urllib.parse.urlencode(params)}"
     data = _fetch_json(url)
     if not data:
         return None
@@ -101,7 +138,7 @@ def get_weather_data(city="Lipa"):
         rainfall = data['rain'].get('1h', 0) or 0
 
     result = {
-        'city': city,
+        'city': CALABARZON_CITIES.get(canonical_city, canonical_city.title()),
         'temperature': data.get('main', {}).get('temp'),
         'humidity': data.get('main', {}).get('humidity'),
         'pressure': data.get('main', {}).get('pressure'),
@@ -110,8 +147,8 @@ def get_weather_data(city="Lipa"):
         'weather': data.get('weather', [{}])[0].get('description'),
         'fetched_at': datetime.utcnow().isoformat() + 'Z'
     }
-    # Cache the result
-    _cache['weather'] = {'data': result, 'timestamp': datetime.utcnow()}
+    # Cache the result by city
+    _cache['weather'][canonical_city] = {'data': result, 'timestamp': datetime.utcnow()}
     return result
 
 

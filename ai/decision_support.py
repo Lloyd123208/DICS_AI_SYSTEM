@@ -83,7 +83,8 @@ PROVIDER_DEFAULTS = {
 }
 
 REQUEST_TIMEOUT_SECONDS = 15
-VALID_LEVELS = {'Low', 'Moderate', 'High', 'Severe'}
+VALID_LEVELS = {'Low', 'Moderate', 'High', 'Severe', 'Unknown', 'Insufficient Data', 'INSUFFICIENT_DATA'}
+UNKNOWN_RISK_LEVELS = {'UNKNOWN', 'INSUFFICIENT_DATA', 'INSUFFICIENT DATA', 'INSUFFICIENT-DATA'}
 
 SYSTEM_PROMPT = (
     "You are a disaster-risk decision-support assistant for a Digital Incident "
@@ -94,12 +95,13 @@ SYSTEM_PROMPT = (
     "matching exactly this schema:\n"
     "{\n"
     '  "score": <number 0-100>,\n'
-    '  "level": "Low" | "Moderate" | "High" | "Severe",\n'
+    '  "level": "Low" | "Moderate" | "High" | "Severe" | "Insufficient Data",\n'
     '  "message": "<one short paragraph, plain language, for a duty officer>",\n'
     '  "recommended_agencies": ["<agency>", ...],\n'
     '  "recommended_resources": ["<resource, with a rough quantity if useful>", ...]\n'
     "}\n\n"
     "Level bands: 0-24 Low, 25-49 Moderate, 50-74 High, 75-100 Severe. "
+    "Use \"Insufficient Data\" when the hazard model cannot be assessed because a required input is unavailable. "
     "Only include agencies/resources genuinely warranted by the inputs given -- "
     "an empty list is correct when nothing is warranted. You provide a "
     "recommendation for a human to review, not a dispatch order; do not imply "
@@ -107,13 +109,13 @@ SYSTEM_PROMPT = (
 )
 
 
-def _build_user_prompt(hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
+def _build_user_prompt(hazard_type, rainfall_mm, river_level_m, humidity_pct,
                         population_density, earthquake_data=None, aftershock_forecast=None):
     lines = [
         f"Hazard type: {hazard_type}",
         f"Rainfall: {rainfall_mm} mm",
         f"River level: {river_level_m} m",
-        f"Soil moisture: {soil_moisture_pct}%",
+        f"Humidity: {humidity_pct}%",
         f"Population density (this grid square): {population_density}",
     ]
     if earthquake_data:
@@ -235,6 +237,10 @@ def _parse_ai_response(raw_text, hazard_type):
     if level not in VALID_LEVELS:
         level = _level_from_score(score)
 
+    raw_level = str(level or '').strip()
+    if raw_level.upper() in UNKNOWN_RISK_LEVELS:
+        level = 'INSUFFICIENT_DATA'
+
     message = str(data.get('message') or '').strip()
     if not message:
         message = f'{level} {hazard_type} risk assessed (score {score}).'
@@ -262,7 +268,7 @@ def _fallback_response(hazard_type, reason):
     return {
         'type': hazard_type or 'unknown',
         'score': 0.0,
-        'level': 'Unknown',
+        'level': 'INSUFFICIENT_DATA',
         'message': (
             f'AI hazard assessment unavailable ({reason}). Falling back to manual '
             'review -- please assess this reading directly and retry shortly.'
@@ -278,7 +284,7 @@ def _fallback_response(hazard_type, reason):
 
 # --- Public entry point ------------------------------------------------
 
-def assess_hazard(hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
+def assess_hazard(hazard_type, rainfall_mm, river_level_m, humidity_pct,
                    population_density, earthquake_data=None, aftershock_forecast=None):
     hazard_type = hazard_type.strip().lower() if isinstance(hazard_type, str) else 'flood'
 
@@ -292,7 +298,7 @@ def assess_hazard(hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
 
     model = os.getenv(cfg['model_env'], cfg['default_model'])
     user_prompt = _build_user_prompt(
-        hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
+        hazard_type, rainfall_mm, river_level_m, humidity_pct,
         population_density, earthquake_data, aftershock_forecast,
     )
 
@@ -313,9 +319,9 @@ def assess_hazard(hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
 # line to `from ai.decision_support import predict_hazard` is a drop-in
 # replacement -- same keyword arguments, same return shape (with three new
 # optional keys: recommended_agencies, recommended_resources, degraded).
-def predict_hazard(hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
+def predict_hazard(hazard_type, rainfall_mm, river_level_m, humidity_pct,
                     population_density, earthquake_data=None, aftershock_forecast=None):
     return assess_hazard(
-        hazard_type, rainfall_mm, river_level_m, soil_moisture_pct,
+        hazard_type, rainfall_mm, river_level_m, humidity_pct,
         population_density, earthquake_data, aftershock_forecast,
     )

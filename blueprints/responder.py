@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 
 from models import db, User, IncidentResponse, Task, IncidentMessage
 from blueprints.common import is_field_responder
+from services import permissions as permission_service
 
 responder_bp = Blueprint('responder', __name__)
 
@@ -17,7 +18,7 @@ def responder_dashboard():
         return redirect(url_for('login'))
 
     user = User.query.filter_by(username=session['username']).first()
-    if not user or user.role != 'field_responder':
+    if not user or not permission_service.user_has_any_role(user, 'RESPONDER'):
         flash('Field responder access required.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -45,7 +46,7 @@ def responder_tasks():
         return redirect(url_for('login'))
 
     user = User.query.filter_by(username=session['username']).first()
-    if not user or user.role != 'field_responder':
+    if not user or not permission_service.user_has_any_role(user, 'RESPONDER'):
         flash('Field responder access required.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -80,7 +81,7 @@ def responder_checklist():
         return redirect(url_for('login'))
 
     user = User.query.filter_by(username=session['username']).first()
-    if not user or user.role != 'field_responder':
+    if not user or not permission_service.user_has_any_role(user, 'RESPONDER'):
         flash('Field responder access required.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -120,7 +121,7 @@ def responder_report():
         return redirect(url_for('login'))
 
     user = User.query.filter_by(username=session['username']).first()
-    if not user or user.role != 'field_responder':
+    if not user or not permission_service.user_has_any_role(user, 'RESPONDER'):
         flash('Field responder access required.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -204,7 +205,7 @@ def responder_update_task(task_id):
         return redirect(url_for('login'))
 
     user = User.query.filter_by(username=session['username']).first()
-    if not user or user.role != 'field_responder':
+    if not user or not permission_service.user_has_any_role(user, 'RESPONDER'):
         flash('Field responder access required.', 'danger')
         return redirect(url_for('dashboard'))
 

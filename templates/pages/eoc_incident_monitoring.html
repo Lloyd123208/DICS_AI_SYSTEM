@@ -159,7 +159,7 @@
                     <tbody>
                         {% for incident in incidents %}
                         <tr>
-                            <td><strong class="text-white">#{{ incident.id }}</strong></td>
+                            <td><a href="{{ url_for('eoc.eoc_incident_detail', incident_id=incident.id) }}" class="text-white fw-bold" style="text-decoration:none;">#{{ incident.id }}</a></td>
                             <td>
                                 <span style="padding:0.3em 0.6em;background:rgba(139,92,246,0.15);color:#C4B5FD;border:1px solid rgba(139,92,246,0.4);border-radius:6px;font-size:0.75em;font-weight:700;text-transform:uppercase;">
                                     {{ incident.hazard_type }}
@@ -184,7 +184,7 @@
                                     <span style="padding:0.25em 0.55em;background:rgba(107,114,128,0.15);color:#9CA3AF;border:1px solid rgba(107,114,128,0.3);border-radius:5px;font-size:0.7em;font-weight:700;">NONE</span>
                                 {% endif %}
                             </td>
-                            <td><span class="text-muted small">{{ incident.created_at.strftime('%b %d, %Y %H:%M') }}</span></td>
+                            <td>{{ hz.event_time_cell(incident, fmt='%b %d, %Y %H:%M') }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

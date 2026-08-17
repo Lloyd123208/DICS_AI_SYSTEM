@@ -160,11 +160,16 @@
                         <div class="text-end flex-shrink-0" style="min-width:140px;">
                             <div class="text-muted" style="font-size:.72rem;">
                                 <i class="bi bi-clock me-1"></i>
-                                {{ incident.created_at.strftime('%b %d, %Y') }}
+                                {{ incident.display_time.strftime('%b %d, %Y') }}
                             </div>
                             <div class="text-muted" style="font-size:.72rem;">
-                                {{ incident.created_at.strftime('%I:%M %p') }}
+                                {{ incident.display_time.strftime('%I:%M %p') }}
                             </div>
+                            {% if incident.event_time and incident.created_at and (incident.created_at - incident.event_time).total_seconds()|abs > 3600 %}
+                            <div class="text-muted" style="font-size:.65rem;opacity:.7;">
+                                Logged {{ incident.created_at.strftime('%b %d, %I:%M %p') }}
+                            </div>
+                            {% endif %}
                             {% if incident.score %}
                             <div class="mt-1 fw-bold" style="font-size:.85rem;color:#60A5FA;">
                                 Risk: {{ '%.1f'|format(incident.score|float(0)) }}%

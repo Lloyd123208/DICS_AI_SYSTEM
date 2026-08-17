@@ -7,6 +7,7 @@
     {%- if t == 'flood' -%}bi-water
     {%- elif t == 'landslide' -%}bi-triangle-fill
     {%- elif t == 'earthquake' -%}bi-broadcast-pin
+    {%- elif t == 'volcanic' -%}bi-cone-striped
     {%- elif t == 'storm' -%}bi-cloud-lightning-rain-fill
     {%- elif t == 'fire' -%}bi-fire
     {%- else -%}bi-exclamation-triangle-fill
@@ -41,4 +42,18 @@
     {%- else -%}
     <span class="priority-badge priority-low"><span class="priority-badge-content"><i class="bi bi-record-fill"></i>{{ label or 'LOW' }}</span></span>
     {%- endif -%}
+{%- endmacro %}
+
+{# incident.display_time is event_time (when the hazard actually happened,
+   per the source feed) if known, else created_at (when we logged it). When
+   the two differ by more than an hour -- e.g. a hazard-monitor incident
+   ingested well after the fact -- also show the logged time as a small
+   secondary line, so it's clear the top line is the real event time, not
+   "just now". fmt controls the primary line's strftime format; the
+   secondary line always uses a compact one to save space. #}
+{% macro event_time_cell(incident, fmt='%b %d, %Y %H:%M') -%}
+<span class="text-muted small">{{ incident.display_time.strftime(fmt) }}</span>
+{%- if incident.event_time and incident.created_at and (incident.created_at - incident.event_time).total_seconds()|abs > 3600 -%}
+<br><span class="text-muted" style="font-size:.68rem;opacity:.7;">Logged {{ incident.created_at.strftime('%b %d, %H:%M') }}</span>
+{%- endif -%}
 {%- endmacro %}

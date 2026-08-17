@@ -56,6 +56,42 @@
                 </div>
             </div>
 
+            <!-- Official Advisories: human-issued by EOC/Commander/Admin, distinct from
+                 the AI-flagged incidents below. See eoc.issue_alert / models.Alert. -->
+            <div class="card card-custom shadow-lg mb-4">
+                <div class="card-body p-4">
+                    <div class="section-header">
+                        <span class="section-header-icon"><i class="bi bi-megaphone-fill"></i></span>
+                        <h4>Official Advisories</h4>
+                    </div>
+
+                    {% if official_alerts %}
+                        <div class="vstack gap-3">
+                            {% for a in official_alerts %}
+                            <div style="padding:1rem;border-radius:8px;
+                                {% if a.severity == 'CRITICAL' %}background:rgba(239,68,68,0.1);border-left:3px solid #EF4444;
+                                {% elif a.severity == 'HIGH' %}background:rgba(239,68,68,0.06);border-left:3px solid #F87171;
+                                {% elif a.severity == 'MEDIUM' %}background:rgba(245,158,11,0.08);border-left:3px solid #F59E0B;
+                                {% else %}background:rgba(148,163,184,0.06);border-left:3px solid #94A3B8;{% endif %}"
+                                role="alert" aria-live="assertive">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong>{{ a.title }}</strong>
+                                    <span style="font-size:0.68rem;font-weight:700;padding:0.2em 0.6em;border-radius:5px;
+                                        {% if a.severity in ['CRITICAL','HIGH'] %}background:rgba(239,68,68,0.15);color:#FCA5A5;
+                                        {% elif a.severity == 'MEDIUM' %}background:rgba(245,158,11,0.15);color:#FDE68A;
+                                        {% else %}background:rgba(148,163,184,0.15);color:#CBD5E1;{% endif %}">{{ a.severity }}</span>
+                                </div>
+                                <p class="mb-1 small">{{ a.message }}</p>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ a.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        {{ es.render('bi-check-circle-fill', 'No Official Advisories', subtitle='No official alerts have been issued at this time.', variant='success', size='sm') }}
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Emergency Notifications -->
             <div class="card card-custom shadow-lg mb-4">
                 <div class="card-body p-4">

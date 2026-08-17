@@ -236,7 +236,7 @@
                                         <span class="badge-status-resolved" style="font-size:0.72rem;">INACTIVE</span>
                                     {% endif %}
                                 </td>
-                                <td><span class="text-muted small">{{ incident.created_at.strftime('%b %d, %H:%M') }}</span></td>
+                                <td>{{ hz.event_time_cell(incident, fmt='%b %d, %H:%M') }}</td>
                                 <td class="text-center">
                                     <form method="POST" action="{{ url_for('commander.activate_incident_response', incident_id=incident.id) }}" style="display:inline;" data-confirm="Activate incident response for #{{ incident.id }}?" data-confirm-title="Activate response">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

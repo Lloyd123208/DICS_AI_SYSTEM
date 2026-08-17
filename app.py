@@ -58,6 +58,7 @@ from blueprints.responder import (
 from blueprints.eoc import eoc_bp, eoc_dashboard, eoc_incident_monitoring, eoc_resource_monitoring
 from blueprints.citizen import citizen_bp, citizen_report, citizen_status, citizen_resources, citizen_alerts, citizen_dashboard
 from blueprints.ai import ai_bp
+from blueprints.facilities import facilities_bp
 
 
 app = Flask(__name__)
@@ -138,6 +139,7 @@ app.register_blueprint(responder_bp)
 app.register_blueprint(eoc_bp)
 app.register_blueprint(citizen_bp)
 app.register_blueprint(ai_bp)
+app.register_blueprint(facilities_bp)
 
 # Backward-compatible aliases for legacy endpoint names used by older templates.
 app.add_url_rule('/incident-commander-dashboard', endpoint='incident_commander_dashboard', view_func=incident_commander_dashboard)
@@ -241,6 +243,10 @@ def migrate_user_table():
                 cursor.execute("ALTER TABLE incident ADD COLUMN location VARCHAR(255)")
             if 'citizen_report_id' not in columns:
                 cursor.execute("ALTER TABLE incident ADD COLUMN citizen_report_id INTEGER")
+            if 'external_event_id' not in columns:
+                cursor.execute("ALTER TABLE incident ADD COLUMN external_event_id VARCHAR(120)")
+            if 'event_time' not in columns:
+                cursor.execute("ALTER TABLE incident ADD COLUMN event_time DATETIME")
             conn.commit()
 
 
@@ -808,8 +814,8 @@ def analytics():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    if not permission_service.is_admin() and not permission_service.is_eoc():
-        flash('You do not have permission to access analytics. Only admins and EOC staff can view system analytics.', 'danger')
+    if not permission_service.can_view_analytics(User.query.filter_by(username=session['username']).first()):
+        flash('You do not have permission to access analytics. Only admins, coordinators, commanders, and EOC staff can view system analytics.', 'danger')
         return redirect(url_for('dashboard'))
 
     total_incidents = db.session.query(Incident).count()

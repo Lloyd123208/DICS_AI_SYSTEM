@@ -581,29 +581,9 @@ function openEditModal(id, username, fullName, contact, agency, role) {
 }
 
 function downloadDatabaseBackup(btn) {
-    // Trigger the download inside a hidden iframe rather than navigating the
-    // tab to /admin/backup directly. This keeps the admin on this page the
-    // whole time — whether they click Save or Cancel on the native file
-    // dialog — since the browser's save prompt is tied to the iframe's
-    // request, not the page you're looking at. The page then reloads
-    // shortly after, since there's no reliable cross-browser event for
-    // "the save dialog closed" — the reload gives clear, consistent
-    // feedback that the backup attempt is done either way.
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Preparing backup…';
-
-    let iframe = document.getElementById('backup-download-frame');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'backup-download-frame';
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-    }
-    iframe.src = '/admin/backup';
-
-    setTimeout(() => {
-        window.location.reload();
-    }, 1500);
+    window.location.href = '/admin/backup';
 }
 </script>
 {% endblock %}

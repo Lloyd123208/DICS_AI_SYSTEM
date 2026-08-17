@@ -21,6 +21,7 @@ from flask import render_template_string
 import app as app_module
 from app import app, db
 from models import User, CitizenReport, Incident, IncidentResponse, PostIncidentReport, Task, Resource, IncidentMessage
+from seed.demo_data import seed_geography_data
 import scheduler
 
 
@@ -38,6 +39,12 @@ class ResponderRoutesTestCase(unittest.TestCase):
         with self.app.app_context():
             db.drop_all()
             db.create_all()
+            # `app.py`'s lazy_init() only seeds geography/agency reference data once
+            # per process (guarded by a module-level flag), so it won't re-fire after
+            # this test's drop_all/create_all wipes the tables. Re-seed explicitly so
+            # every test gets real barangay/municipality/province rows to reference,
+            # regardless of run order.
+            seed_geography_data()
             user = User(
                 username='responder1',
                 email='responder@example.com',
@@ -49,11 +56,39 @@ class ResponderRoutesTestCase(unittest.TestCase):
             db.session.add(user)
             db.session.commit()
 
+    def tearDown(self):
+        with self.app.app_context():
+            db.session.remove()
+
     def test_predict_hazard_fallback_contract_uses_insufficient_data(self):
         from ai import decision_support
 
+        # Inputs deliberately chosen to clear every `_deterministic_low_risk_exit`
+        # threshold (rainfall/river/humidity/population all "high"), so this
+        # actually reaches the AI adapter call instead of short-circuiting to the
+        # deterministic Low-risk result -- otherwise this test never exercises the
+        # "provider unavailable" fallback contract it's meant to verify.
         with patch('ai.decision_support.AI_PROVIDER', 'anthropic'), \
              patch.dict(os.environ, {'ANTHROPIC_API_KEY': ''}, clear=False):
+            prediction = decision_support.predict_hazard(
+                'flood',
+                rainfall_mm=200,
+                river_level_m=5.0,
+                humidity_pct=95,
+                population_density=5000,
+            )
+
+        self.assertEqual(prediction.get('level'), 'INSUFFICIENT_DATA')
+        self.assertTrue(prediction.get('degraded'))
+        self.assertFalse(prediction.get('alert'))
+        self.assertEqual(prediction.get('score'), 0.0)
+
+    def test_predict_hazard_deterministic_exit_skips_ai_call_for_low_risk_inputs(self):
+        from ai import decision_support
+
+        with patch('ai.decision_support.AI_PROVIDER', 'anthropic'), \
+             patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'unused-key'}, clear=False), \
+             patch.object(decision_support, '_ADAPTERS', {}) as adapters:
             prediction = decision_support.predict_hazard(
                 'flood',
                 rainfall_mm=0,
@@ -62,10 +97,10 @@ class ResponderRoutesTestCase(unittest.TestCase):
                 population_density=0,
             )
 
-        self.assertEqual(prediction.get('level'), 'INSUFFICIENT_DATA')
-        self.assertTrue(prediction.get('degraded'))
-        self.assertFalse(prediction.get('alert'))
-        self.assertEqual(prediction.get('score'), 0.0)
+        self.assertEqual(prediction.get('level'), 'Low')
+        self.assertEqual(prediction.get('provider'), 'deterministic')
+        self.assertFalse(prediction.get('degraded'))
+        self.assertEqual(adapters, {})  # sanity check the patch took effect; adapter was never called
 
     def test_field_responder_dashboard_requires_login(self):
         response = self.client.get('/responder-dashboard')
@@ -135,6 +170,17 @@ class ResponderRoutesTestCase(unittest.TestCase):
             response = IncidentResponse(incident_id=incident.id, commander_id=coordinator.id, status='ACTIVE')
             db.session.add(response)
             db.session.commit()
+
+            task = Task(
+                incident_response_id=response.id,
+                assigned_to_agency='BFP',
+                assigned_by_id=coordinator.id,
+                title='BFP support task',
+                description='Ensures BFP is attached to the response',
+                status='PENDING',
+            )
+            db.session.add(task)
+            db.session.commit()
             response_id = response.id
 
         with self.client.session_transaction() as session:
@@ -193,6 +239,46 @@ class ResponderRoutesTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         with self.app.app_context():
             self.assertEqual(IncidentMessage.query.count(), 0)
+
+    def test_coordinator_response_detail_rejects_unowned_response(self):
+        with self.app.app_context():
+            coordinator = User(
+                username='coordinator4',
+                email='coord4@example.com',
+                password='secret',
+                role='agency_coordinator',
+                agency='BFP',
+                email_verified=True,
+            )
+            db.session.add(coordinator)
+            other_coordinator = User(
+                username='coordinator_other',
+                email='coord_other@example.com',
+                password='secret',
+                role='agency_coordinator',
+                agency='DOH',
+                email_verified=True,
+            )
+            db.session.add(other_coordinator)
+            db.session.commit()
+
+            incident = Incident(user_id=other_coordinator.id, hazard_type='earthquake', location='Test', message='Test', level='high', alert=True, status='ACTIVE')
+            db.session.add(incident)
+            db.session.commit()
+
+            response = IncidentResponse(incident_id=incident.id, commander_id=other_coordinator.id, status='ACTIVE')
+            db.session.add(response)
+            db.session.commit()
+            response_id = response.id
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'coordinator4'
+            session['role'] = 'agency_coordinator'
+            session['agency'] = 'BFP'
+
+        response = self.client.get(f'/coordinator/response/{response_id}', follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Access denied.', response.data)
 
     def test_create_default_admin_requires_password_env(self):
         with self.app.app_context():
@@ -325,6 +411,47 @@ class ResponderRoutesTestCase(unittest.TestCase):
             self.assertEqual(upload_response.status_code, 200)
             self.assertGreater(len(upload_response.data), 0)
             self.assertTrue(upload_response.data.startswith(b'\xff\xd8'))
+
+    def test_citizen_report_does_not_create_duplicate_incident_for_recent_same_barangay_report(self):
+        with self.client.session_transaction() as session:
+            session['username'] = 'responder1'
+            session['role'] = 'user'
+
+        response1 = self.client.post('/citizen-report', data={
+            'hazard_type': 'flood',
+            'severity': 'high',
+            'location': 'Barangay Test',
+            'description': 'Water rising',
+            'affected_people': '5',
+            'injuries': '0',
+            'contact': '09170000000',
+            'gps_lat': '14.1234',
+            'gps_lng': '121.5678',
+            'province_id': 1,
+            'municipality_id': 1,
+            'barangay_id': 1,
+        }, follow_redirects=True)
+
+        response2 = self.client.post('/citizen-report', data={
+            'hazard_type': 'flood',
+            'severity': 'high',
+            'location': 'Barangay Test',
+            'description': 'Water rising again',
+            'affected_people': '6',
+            'injuries': '0',
+            'contact': '09170000000',
+            'gps_lat': '14.1234',
+            'gps_lng': '121.5678',
+            'province_id': 1,
+            'municipality_id': 1,
+            'barangay_id': 1,
+        }, follow_redirects=True)
+
+        self.assertEqual(response1.status_code, 200)
+        self.assertEqual(response2.status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(CitizenReport.query.count(), 2)
+            self.assertEqual(Incident.query.filter_by(reported_by='citizen').count(), 1)
 
     def test_citizen_report_rejects_invalid_photo_upload(self):
         with self.client.session_transaction() as session:
@@ -607,6 +734,238 @@ class ResponderRoutesTestCase(unittest.TestCase):
             self.assertEqual(report.lessons_learned, 'Improved shelter coordination')
             self.assertEqual(report.response_rating, 5)
             self.assertEqual(report.recommendations, 'Add more evacuation buses')
+
+    def test_commander_update_task_rejects_task_from_unowned_response(self):
+        """A commander must not be able to mutate a task belonging to a
+        different commander's response, even if they own *some* response
+        and pass its id in the URL. Mirrors
+        test_coordinator_update_task_rejects_unowned_task's coverage of the
+        coordinator side of this same class of bug."""
+        with self.app.app_context():
+            commander_a = User(username='commanderA', email='ca@example.com', password='secret', role='incident_commander', agency='BFP', email_verified=True)
+            commander_b = User(username='commanderB', email='cb@example.com', password='secret', role='incident_commander', agency='PNP', email_verified=True)
+            db.session.add_all([commander_a, commander_b])
+            db.session.commit()
+
+            incident_a = Incident(hazard_type='flood', location='A', message='m', level='HIGH', status='ACTIVE')
+            incident_b = Incident(hazard_type='flood', location='B', message='m', level='HIGH', status='ACTIVE')
+            db.session.add_all([incident_a, incident_b])
+            db.session.commit()
+
+            response_a = IncidentResponse(incident_id=incident_a.id, commander_id=commander_a.id, status='ACTIVE')
+            response_b = IncidentResponse(incident_id=incident_b.id, commander_id=commander_b.id, status='ACTIVE')
+            db.session.add_all([response_a, response_b])
+            db.session.commit()
+
+            task_b = Task(
+                incident_response_id=response_b.id,
+                assigned_to_agency='PNP',
+                assigned_by_id=commander_b.id,
+                title='Belongs to commander B',
+                description='Should not be mutable by commander A',
+                status='PENDING',
+            )
+            db.session.add(task_b)
+            db.session.commit()
+            response_a_id, task_b_id = response_a.id, task_b.id
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'commanderA'
+            session['role'] = 'incident_commander'
+            session['agency'] = 'BFP'
+
+        # Commander A owns response_a_id, but task_b_id belongs to response_b.
+        result = self.client.post(
+            f'/incident-response/{response_a_id}/update-task/{task_b_id}',
+            data={'status': 'COMPLETED'},
+        )
+        self.assertEqual(result.status_code, 404)
+        with self.app.app_context():
+            refreshed = Task.query.get(task_b_id)
+            self.assertEqual(refreshed.status, 'PENDING')
+
+    def test_commander_update_resource_rejects_resource_from_unowned_response(self):
+        with self.app.app_context():
+            commander_a = User(username='commanderC', email='cc@example.com', password='secret', role='incident_commander', agency='BFP', email_verified=True)
+            commander_b = User(username='commanderD', email='cd@example.com', password='secret', role='incident_commander', agency='PNP', email_verified=True)
+            db.session.add_all([commander_a, commander_b])
+            db.session.commit()
+
+            incident_a = Incident(hazard_type='flood', location='A', message='m', level='HIGH', status='ACTIVE')
+            incident_b = Incident(hazard_type='flood', location='B', message='m', level='HIGH', status='ACTIVE')
+            db.session.add_all([incident_a, incident_b])
+            db.session.commit()
+
+            response_a = IncidentResponse(incident_id=incident_a.id, commander_id=commander_a.id, status='ACTIVE')
+            response_b = IncidentResponse(incident_id=incident_b.id, commander_id=commander_b.id, status='ACTIVE')
+            db.session.add_all([response_a, response_b])
+            db.session.commit()
+
+            resource_b = Resource(
+                incident_response_id=response_b.id,
+                resource_type='Ambulance',
+                agency='PNP',
+                quantity=1,
+                status='AVAILABLE',
+            )
+            db.session.add(resource_b)
+            db.session.commit()
+            response_a_id, resource_b_id = response_a.id, resource_b.id
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'commanderC'
+            session['role'] = 'incident_commander'
+            session['agency'] = 'BFP'
+
+        result = self.client.post(
+            f'/incident-response/{response_a_id}/update-resource/{resource_b_id}',
+            data={'status': 'DEPLOYED'},
+        )
+        self.assertEqual(result.status_code, 404)
+        with self.app.app_context():
+            refreshed = Resource.query.get(resource_b_id)
+            self.assertEqual(refreshed.status, 'AVAILABLE')
+
+    def test_dashboard_stats_requires_login(self):
+        """Migrated from the root-level tmp_debug_eoc_request.py-style
+        manual scratch check into a real assertion. /api/dashboard-stats
+        had no pytest coverage at all before this."""
+        result = self.client.get('/api/dashboard-stats')
+        self.assertEqual(result.status_code, 401)
+
+    def test_dashboard_stats_returns_numeric_risk_score_and_magnitude(self):
+        """Migrated from the root-level test_ai_prediction.py scratch
+        script: that script's actual concern was that latest_risk_score /
+        latest_earthquake_magnitude come back as numbers Jinja's
+        "%.0f"|format(...) filter can consume without raising, not just
+        that the endpoint returns 200. A None or string value here would
+        pass a naive '200 OK' check but still break the citizen dashboard
+        and ai_prediction.html template that render these values."""
+        with self.app.app_context():
+            citizen = User(username='dashboard_citizen', email='dc@example.com', password='secret', role='citizen', email_verified=True)
+            db.session.add(citizen)
+            db.session.commit()
+            incident = Incident(
+                user_id=citizen.id, hazard_type='flood', location='Test', message='m',
+                status='ACTIVE', alert=True, score=62.5,
+            )
+            db.session.add(incident)
+            db.session.commit()
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'dashboard_citizen'
+            session['role'] = 'citizen'
+
+        result = self.client.get('/api/dashboard-stats')
+        self.assertEqual(result.status_code, 200)
+        payload = result.get_json()
+        for key in ('alert_count', 'total_incidents', 'latest_risk_score', 'latest_earthquake_magnitude'):
+            self.assertIn(key, payload)
+        # The actual bug class this guards against: these must format
+        # cleanly as numbers, matching how the dashboard templates use them.
+        formatted_score = "%.0f" % float(payload['latest_risk_score'])
+        formatted_magnitude = "%.1f" % float(payload['latest_earthquake_magnitude'])
+        self.assertTrue(formatted_score)
+        self.assertTrue(formatted_magnitude)
+        self.assertEqual(float(payload['latest_risk_score']), 62.5)
+
+    def test_emergency_sos_meta_csrf_token_round_trip(self):
+        """The SOS button (static/js/app.js triggerSOS()) sends the CSRF
+        token from a <meta name="csrf-token"> tag as an X-CSRFToken header,
+        since it's a JSON fetch() with no HTML form to carry a hidden field.
+        Verify that round trip actually works end-to-end with CSRF protection
+        turned on (the test harness disables it globally by default), and
+        that a request with no token is still rejected.
+        """
+        self.app.config.update(WTF_CSRF_ENABLED=True)
+        try:
+            with self.client.session_transaction() as session:
+                session['username'] = 'responder1'
+                session['role'] = 'citizen'
+
+            page = self.client.get('/citizen-dashboard')
+            html = page.get_data(as_text=True)
+            match = __import__('re').search(r'name="csrf-token" content="([^"]+)"', html)
+            self.assertIsNotNone(match, 'base.html is missing the csrf-token meta tag')
+            token = match.group(1)
+
+            no_token_response = self.client.post('/emergency-sos', json={'location': 'Test'})
+            self.assertEqual(no_token_response.status_code, 400)
+
+            with_token_response = self.client.post(
+                '/emergency-sos',
+                json={'location': 'Test'},
+                headers={'X-CSRFToken': token},
+            )
+            self.assertEqual(with_token_response.status_code, 200)
+            self.assertTrue(with_token_response.get_json().get('success'))
+        finally:
+            self.app.config.update(WTF_CSRF_ENABLED=False)
+
+    def test_analytics_accessible_to_coordinator_and_commander_not_just_admin_eoc(self):
+        """/analytics previously only allowed admin/EOC, which contradicted
+        services.permissions.can_view_analytics() (and docs/permissions-matrix.md),
+        both of which also grant coordinator and commander access."""
+        with self.app.app_context():
+            coordinator = User(username='analytics_coord', email='ac@example.com', password='secret', role='agency_coordinator', agency='BFP', email_verified=True)
+            db.session.add(coordinator)
+            db.session.commit()
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'analytics_coord'
+            session['role'] = 'agency_coordinator'
+            session['agency'] = 'BFP'
+
+        response = self.client.get('/analytics')
+        self.assertEqual(response.status_code, 200)
+
+    def test_analytics_denied_to_citizen(self):
+        with self.client.session_transaction() as session:
+            session['username'] = 'responder1'
+            session['role'] = 'citizen'
+
+        response = self.client.get('/analytics', follow_redirects=False)
+        self.assertEqual(response.status_code, 302)
+
+    def test_admin_denied_access_to_coordinator_dashboard(self):
+        """Admin was previously let into /coordinator/* via
+        is_admin_or_coordinator(), which meant an admin visiting these
+        pages saw everything empty (get_coordinator_agency() reads
+        admin.agency, which is normally blank) -- a confusing dead end
+        rather than a real feature. Admin's role is pure administration;
+        agency operations belong to coordinators only."""
+        with self.app.app_context():
+            admin = User(username='admin_only', email='admin_only@example.com', password='secret', role='admin', email_verified=True)
+            db.session.add(admin)
+            db.session.commit()
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'admin_only'
+            session['role'] = 'admin'
+
+        for path in ('/coordinator', '/coordinator/tasks', '/coordinator/team',
+                     '/coordinator/resources', '/coordinator/resource-requests',
+                     '/coordinator/reports', '/coordinator/comms'):
+            with self.subTest(path=path):
+                result = self.client.get(path, follow_redirects=False)
+                self.assertEqual(result.status_code, 302)
+                self.assertNotIn('/coordinator', result.headers.get('Location', ''))
+
+    def test_agency_coordinator_still_has_access_to_coordinator_dashboard(self):
+        """Companion to the admin-denial test above: the fix must narrow
+        access to coordinators only, not lock coordinators out too."""
+        with self.app.app_context():
+            coordinator = User(username='coord_only', email='coord_only@example.com', password='secret', role='agency_coordinator', agency='BFP', email_verified=True)
+            db.session.add(coordinator)
+            db.session.commit()
+
+        with self.client.session_transaction() as session:
+            session['username'] = 'coord_only'
+            session['role'] = 'agency_coordinator'
+            session['agency'] = 'BFP'
+
+        result = self.client.get('/coordinator')
+        self.assertEqual(result.status_code, 200)
 
     def test_coordinator_comms_page_renders_for_agency_coordinator(self):
         with self.client.session_transaction() as session:

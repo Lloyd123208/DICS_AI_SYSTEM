@@ -40,6 +40,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from models import Agency
+
 # --- .env loading (same convention as services/realtime_data.py) ---------
 
 def _load_dotenv():
@@ -95,8 +97,10 @@ SYSTEM_PROMPT = (
     "matching exactly this schema:\n"
     "{\n"
     '  "score": <number 0-100>,\n'
+    '  "confidence": <number 0-100>,\n'
     '  "level": "Low" | "Moderate" | "High" | "Severe" | "Insufficient Data",\n'
     '  "message": "<one short paragraph, plain language, for a duty officer>",\n'
+    '  "primary_factors": ["<factor>", ...],\n'
     '  "recommended_agencies": ["<agency>", ...],\n'
     '  "recommended_resources": ["<resource, with a rough quantity if useful>", ...]\n'
     "}\n\n"
@@ -227,6 +231,78 @@ def _level_from_score(score):
     return 'Severe'
 
 
+def _deterministic_low_risk_exit(hazard_type, rainfall_mm, river_level_m,
+                                 humidity_pct, population_density,
+                                 earthquake_data=None):
+    low_rainfall = rainfall_mm is not None and rainfall_mm < 10
+    low_river = river_level_m is None or river_level_m < 1.0
+    low_humidity = humidity_pct is None or humidity_pct < 80
+    low_population = population_density is None or population_density < 500
+    low_seismic = True
+    if earthquake_data and isinstance(earthquake_data, list) and earthquake_data:
+        top = earthquake_data[0]
+        magnitude = float(top.get('magnitude', 0) or 0)
+        low_seismic = magnitude < 4.0
+
+    if low_rainfall and low_river and low_humidity and low_population and low_seismic:
+        factors = []
+        if low_rainfall:
+            factors.append('rainfall below 10 mm')
+        if low_river:
+            factors.append('river level below 1.0 m')
+        if low_humidity:
+            factors.append('humidity below 80%')
+        if low_population:
+            factors.append('population density below 500 people/km²')
+        if low_seismic and earthquake_data:
+            factors.append('seismic activity below M4.0')
+        if not factors:
+            factors.append('low hazard inputs')
+
+        return {
+            'type': hazard_type,
+            'score': 10.0,
+            'level': 'Low',
+            'message': 'Deterministic input thresholds indicate low hazard risk; AI inference is not required.',
+            'alert': False,
+            'recommended_agencies': [],
+            'recommended_resources': [],
+            'confidence': 95.0,
+            'primary_factors': factors,
+            'degraded': False,
+            'provider': 'deterministic',
+            'model': 'threshold-filter-v1',
+        }
+    return None
+
+
+def _normalize_recommended_agencies(recommended_agencies):
+    if not isinstance(recommended_agencies, list):
+        return []
+
+    agency_lookup = None
+    try:
+        agency_lookup = {a.name.upper(): a.name for a in Agency.query.all()}
+    except Exception:
+        agency_lookup = None
+
+    normalized = []
+    for raw in recommended_agencies:
+        if not isinstance(raw, str):
+            continue
+        agency_name = raw.strip()
+        if not agency_name:
+            continue
+        if agency_lookup is None:
+            normalized.append(agency_name)
+            continue
+        canonical = agency_lookup.get(agency_name.upper())
+        if canonical:
+            normalized.append(canonical)
+
+    return list(dict.fromkeys(normalized))
+
+
 def _parse_ai_response(raw_text, hazard_type):
     data = json.loads(_strip_code_fences(raw_text))
 
@@ -245,10 +321,21 @@ def _parse_ai_response(raw_text, hazard_type):
     if not message:
         message = f'{level} {hazard_type} risk assessed (score {score}).'
 
-    recommended_agencies = data.get('recommended_agencies') or []
+    confidence = data.get('confidence')
+    try:
+        confidence = float(confidence)
+    except (TypeError, ValueError):
+        confidence = score
+    confidence = max(0.0, min(100.0, round(confidence, 1)))
+
+    primary_factors = data.get('primary_factors') or []
+    if not isinstance(primary_factors, list):
+        primary_factors = []
+    else:
+        primary_factors = [str(item).strip() for item in primary_factors if str(item).strip()]
+
+    recommended_agencies = _normalize_recommended_agencies(data.get('recommended_agencies') or [])
     recommended_resources = data.get('recommended_resources') or []
-    if not isinstance(recommended_agencies, list):
-        recommended_agencies = []
     if not isinstance(recommended_resources, list):
         recommended_resources = []
 
@@ -258,6 +345,8 @@ def _parse_ai_response(raw_text, hazard_type):
         'level': level,
         'message': message,
         'alert': score >= 50,
+        'confidence': confidence,
+        'primary_factors': primary_factors,
         'recommended_agencies': recommended_agencies,
         'recommended_resources': recommended_resources,
         'degraded': False,
@@ -291,6 +380,13 @@ def assess_hazard(hazard_type, rainfall_mm, river_level_m, humidity_pct,
     cfg = PROVIDER_DEFAULTS.get(AI_PROVIDER)
     if cfg is None:
         return _fallback_response(hazard_type, f"unknown AI_PROVIDER '{AI_PROVIDER}'")
+
+    deterministic_result = _deterministic_low_risk_exit(
+        hazard_type, rainfall_mm, river_level_m, humidity_pct,
+        population_density, earthquake_data,
+    )
+    if deterministic_result is not None:
+        return deterministic_result
 
     api_key = os.getenv(cfg['api_key_env'])
     if not api_key:

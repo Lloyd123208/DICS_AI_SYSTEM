@@ -1,11 +1,10 @@
 import os
 import secrets
-from datetime import datetime
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
-from models import db, User, IncidentResponse, Task, IncidentMessage
+from models import db, User, IncidentResponse, Task, IncidentMessage, utcnow
 from blueprints.common import is_field_responder
 from services import permissions as permission_service
 
@@ -218,7 +217,7 @@ def responder_update_task(task_id):
     if new_status in {'PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'}:
         task.status = new_status
         if new_status == 'COMPLETED':
-            task.completed_at = datetime.utcnow()
+            task.completed_at = utcnow()
         else:
             task.completed_at = None
         try:

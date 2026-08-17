@@ -121,10 +121,12 @@ async function triggerSOS() {
     }
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
         const response = await fetch('/emergency-sos', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
             },
             body: JSON.stringify({
                 location: 'User Emergency Location'

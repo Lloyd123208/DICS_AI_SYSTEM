@@ -1,12 +1,13 @@
 import os
 import secrets
+from datetime import timedelta
 from io import BytesIO
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
-from models import Barangay, Municipality, Province, db, User, Incident, CitizenReport
+from models import Barangay, Municipality, Province, db, User, Incident, CitizenReport, Alert, utcnow
 from services.realtime_data import get_earthquake_data
 
 citizen_bp = Blueprint('citizen', __name__)
@@ -130,6 +131,19 @@ def citizen_report():
             gps_longitude_value = None
 
         try:
+            twenty_minutes_ago = utcnow() - timedelta(minutes=20)
+            duplicate_query = Incident.query.filter(
+                Incident.hazard_type == hazard_type,
+                Incident.created_at >= twenty_minutes_ago,
+                Incident.reported_by == 'citizen',
+            )
+            if barangay_id:
+                duplicate_query = duplicate_query.filter(Incident.barangay_id == barangay_id)
+            else:
+                duplicate_query = duplicate_query.filter(Incident.location == location)
+
+            duplicate_incident = duplicate_query.order_by(Incident.created_at.desc()).first()
+
             citizen_report = CitizenReport(
                 user_id=user.id,
                 hazard_type=hazard_type,
@@ -148,8 +162,21 @@ def citizen_report():
                 photo_filename=photo_filename,
             )
             db.session.add(citizen_report)
-            db.session.flush()
 
+            if duplicate_incident:
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    flash(str(e), 'error')
+                    return redirect(url_for('citizen.citizen_report'))
+                flash(
+                    'A similar report for this barangay was submitted recently. Your report has been recorded, but no duplicate incident was created.',
+                    'info'
+                )
+                return redirect(url_for('citizen.citizen_status'))
+
+            db.session.flush()
             incident = Incident(
                 user_id=user.id,
                 hazard_type=hazard_type,
@@ -238,7 +265,12 @@ def citizen_alerts():
     alerts = Incident.query.filter(Incident.alert == True).order_by(Incident.created_at.desc()).all()
     alert_count = len(alerts)
 
-    return render_template('pages/citizen_alerts.html', alerts=alerts, alert_count=alert_count)
+    # Official, human-issued advisories -- distinct from the raw AI risk flags
+    # above. See eoc.issue_alert / models.Alert.
+    official_alerts = Alert.query.filter_by(status='ACTIVE').order_by(Alert.created_at.desc()).all()
+
+    return render_template('pages/citizen_alerts.html', alerts=alerts, alert_count=alert_count,
+                            official_alerts=official_alerts)
 
 
 @citizen_bp.route('/citizen-status')

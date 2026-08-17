@@ -1,16 +1,29 @@
-from datetime import datetime
-
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage
-from blueprints.common import is_admin_or_coordinator, get_coordinator_agency
+from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage, ResourceRequest, AuditEvent, utcnow
+from blueprints.common import (
+    can_view_response,
+    current_user,
+    get_coordinator_agency,
+    is_agency_coordinator,
+    user_agency_has_response,
+)
+from services import permissions as permission_service
 
 coordinator_bp = Blueprint('coordinator', __name__)
 
 
+def _agency_response_ids(agency):
+    if not agency:
+        return []
+    task_response_ids = {t.incident_response_id for t in Task.query.filter_by(assigned_to_agency=agency).all()}
+    resource_response_ids = {r.incident_response_id for r in Resource.query.filter_by(agency=agency).all()}
+    return list(task_response_ids.union(resource_response_ids))
+
+
 @coordinator_bp.route('/coordinator')
 def coordinator_dashboard():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -23,18 +36,22 @@ def coordinator_dashboard():
 
     pending_count = sum(1 for t in my_tasks if t.status in ('PENDING', 'IN_PROGRESS'))
 
+    agency_response_ids = _agency_response_ids(agency)
     active_responses = IncidentResponse.query.filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentResponse.started_at.desc()).all()
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING']),
+        IncidentResponse.id.in_(agency_response_ids)
+    ).order_by(IncidentResponse.started_at.desc()).all() if agency_response_ids else []
 
-    deployed_resources = Resource.query.filter_by(status='DEPLOYED').count()
+    deployed_resources = Resource.query.filter_by(status='DEPLOYED', agency=agency).count() if agency else 0
     active_incidents = IncidentResponse.query.filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).count()
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING']),
+        IncidentResponse.id.in_(agency_response_ids)
+    ).count() if agency_response_ids else 0
     total_critical = IncidentResponse.query.filter(
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING']),
-        IncidentResponse.priority_level == 'CRITICAL'
-    ).count()
+        IncidentResponse.priority_level == 'CRITICAL',
+        IncidentResponse.id.in_(agency_response_ids)
+    ).count() if agency_response_ids else 0
 
     return render_template('pages/coordinator_dashboard.html',
         my_tasks=my_tasks,
@@ -48,7 +65,7 @@ def coordinator_dashboard():
 
 @coordinator_bp.route('/coordinator/tasks')
 def coordinator_tasks():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -69,7 +86,7 @@ def coordinator_tasks():
 
 @coordinator_bp.route('/coordinator/tasks/<int:task_id>/update', methods=['POST'])
 def coordinator_update_task(task_id):
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -85,7 +102,7 @@ def coordinator_update_task(task_id):
     if new_status in ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'):
         task.status = new_status
         if new_status == 'COMPLETED':
-            task.completed_at = datetime.utcnow()
+            task.completed_at = utcnow()
         try:
             db.session.commit()
         except Exception as e:
@@ -102,21 +119,21 @@ def coordinator_update_task(task_id):
 
 @coordinator_bp.route('/coordinator/team')
 def coordinator_team():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
+    agency = get_coordinator_agency()
     resources = Resource.query.join(IncidentResponse).filter(
+        Resource.agency == agency,
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(Resource.agency, Resource.allocated_at.desc()).all()
+    ).order_by(Resource.allocated_at.desc()).all() if agency else []
 
     team_counts = {}
     for r in resources:
         team_counts[r.agency] = team_counts.get(r.agency, 0) + r.quantity
 
-    all_tasks = Task.query.join(IncidentResponse).filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).all()
+    all_tasks = Task.query.filter_by(assigned_to_agency=agency).all() if agency else []
 
     task_summary = {}
     for t in all_tasks:
@@ -136,17 +153,20 @@ def coordinator_team():
 
 @coordinator_bp.route('/coordinator/resources')
 def coordinator_resources():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
+    agency = get_coordinator_agency()
     resources = Resource.query.join(IncidentResponse).filter(
+        Resource.agency == agency,
         IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(Resource.allocated_at.desc()).all()
+    ).order_by(Resource.allocated_at.desc()).all() if agency else []
 
+    active_response_ids = _agency_response_ids(agency)
     active_responses = IncidentResponse.query.filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentResponse.started_at.desc()).all()
+        IncidentResponse.id.in_(active_response_ids)
+    ).order_by(IncidentResponse.started_at.desc()).all() if active_response_ids else []
 
     deployed_count = sum(1 for r in resources if r.status == 'DEPLOYED')
     available_count = sum(1 for r in resources if r.status == 'AVAILABLE')
@@ -165,7 +185,7 @@ def coordinator_resources():
 
 @coordinator_bp.route('/coordinator/resources/allocate', methods=['POST'])
 def coordinator_allocate_resource():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -190,6 +210,10 @@ def coordinator_allocate_resource():
         return redirect(url_for('coordinator.coordinator_resources'))
 
     response = IncidentResponse.query.get_or_404(response_id)
+    user = current_user()
+    if not user_agency_has_response(user, response):
+        flash('You can only allocate resources to responses that include your agency.', 'error')
+        return redirect(url_for('coordinator.coordinator_resources'))
 
     resource = Resource(
         incident_response_id=response.id,
@@ -199,7 +223,7 @@ def coordinator_allocate_resource():
         status=status,
         location=location or None,
         notes=notes or None,
-        deployed_at=datetime.utcnow() if status == 'DEPLOYED' else None
+        deployed_at=utcnow() if status == 'DEPLOYED' else None
     )
     db.session.add(resource)
     try:
@@ -214,7 +238,7 @@ def coordinator_allocate_resource():
 
 @coordinator_bp.route('/coordinator/resources/<int:resource_id>/update', methods=['POST'])
 def coordinator_update_resource(resource_id):
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -230,7 +254,7 @@ def coordinator_update_resource(resource_id):
     if new_status in ('AVAILABLE', 'DEPLOYED', 'RETURNING', 'UNAVAILABLE'):
         resource.status = new_status
         if new_status == 'DEPLOYED' and not resource.deployed_at:
-            resource.deployed_at = datetime.utcnow()
+            resource.deployed_at = utcnow()
         try:
             db.session.commit()
         except Exception as e:
@@ -247,17 +271,19 @@ def coordinator_update_resource(resource_id):
 
 @coordinator_bp.route('/coordinator/reports')
 def coordinator_reports():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
-    reports = IncidentMessage.query.join(IncidentResponse).filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentMessage.created_at.desc()).all()
+    agency = get_coordinator_agency()
+    response_ids = _agency_response_ids(agency)
+    reports = IncidentMessage.query.filter(
+        IncidentMessage.incident_response_id.in_(response_ids)
+    ).order_by(IncidentMessage.created_at.desc()).all() if response_ids else []
 
     active_responses = IncidentResponse.query.filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentResponse.started_at.desc()).all()
+        IncidentResponse.id.in_(response_ids)
+    ).order_by(IncidentResponse.started_at.desc()).all() if response_ids else []
 
     return render_template('pages/coordinator_reports.html',
         reports=reports,
@@ -267,7 +293,7 @@ def coordinator_reports():
 
 @coordinator_bp.route('/coordinator/reports/submit', methods=['POST'])
 def coordinator_submit_report():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
@@ -329,17 +355,19 @@ def coordinator_submit_report():
 
 @coordinator_bp.route('/coordinator/comms')
 def coordinator_comms():
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
-    comm_logs = IncidentMessage.query.join(IncidentResponse).filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentMessage.created_at.desc()).limit(50).all()
+    agency = get_coordinator_agency()
+    response_ids = _agency_response_ids(agency)
+    comm_logs = IncidentMessage.query.filter(
+        IncidentMessage.incident_response_id.in_(response_ids)
+    ).order_by(IncidentMessage.created_at.desc()).limit(50).all() if response_ids else []
 
     active_responses = IncidentResponse.query.filter(
-        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
-    ).order_by(IncidentResponse.started_at.desc()).all()
+        IncidentResponse.id.in_(response_ids)
+    ).order_by(IncidentResponse.started_at.desc()).all() if response_ids else []
 
     return render_template('pages/coordinator_comms.html',
         comm_logs=comm_logs,
@@ -349,11 +377,16 @@ def coordinator_comms():
 
 @coordinator_bp.route('/coordinator/response/<int:response_id>')
 def coordinator_response_detail(response_id):
-    if not is_admin_or_coordinator():
+    if not is_agency_coordinator():
         flash('Access denied.', 'error')
         return redirect(url_for('login'))
 
     response = IncidentResponse.query.get_or_404(response_id)
+    user = current_user()
+    if not can_view_response(response):
+        flash('Access denied.', 'error')
+        return redirect(url_for('coordinator.coordinator_dashboard'))
+
     agency = get_coordinator_agency()
     agency_tasks = [t for t in response.tasks if t.assigned_to_agency == agency] if agency else []
 
@@ -366,3 +399,80 @@ def coordinator_response_detail(response_id):
 @coordinator_bp.route('/coordinator/quick-report', methods=['POST'])
 def coordinator_quick_report():
     return coordinator_submit_report()
+
+
+@coordinator_bp.route('/coordinator/resource-requests')
+def coordinator_resource_requests():
+    """List this agency's resource requests and expose the submission form.
+
+    Distinct from /coordinator/resources (direct allocation of resources the
+    coordinator already controls): this is for asking EOC/Commander for
+    something the agency doesn't have on hand yet, which needs a decision.
+    """
+    if not permission_service.can_request_resources(current_user()):
+        flash('Access denied.', 'error')
+        return redirect(url_for('login'))
+
+    agency = get_coordinator_agency()
+    requests_ = ResourceRequest.query.filter_by(agency=agency).order_by(
+        ResourceRequest.created_at.desc()
+    ).all() if agency else []
+
+    active_incidents = Incident.query.join(IncidentResponse).filter(
+        IncidentResponse.status.in_(['ACTIVE', 'MONITORING'])
+    ).order_by(Incident.created_at.desc()).all()
+
+    return render_template('pages/coordinator_resource_requests.html',
+        requests=requests_,
+        active_incidents=active_incidents,
+    )
+
+
+@coordinator_bp.route('/coordinator/resource-requests/submit', methods=['POST'])
+def coordinator_submit_resource_request():
+    user = current_user()
+    if not permission_service.can_request_resources(user):
+        flash('Access denied.', 'error')
+        return redirect(url_for('login'))
+
+    agency = get_coordinator_agency()
+    if not agency:
+        flash('Coordinator agency is not configured.', 'error')
+        return redirect(url_for('coordinator.coordinator_resource_requests'))
+
+    incident_id = request.form.get('incident_id', type=int)
+    resource_type = request.form.get('resource_type', '').strip()
+    quantity = request.form.get('quantity', type=int)
+
+    if not incident_id or not resource_type or not quantity or quantity < 1:
+        flash('Incident, resource type, and a valid quantity are required.', 'error')
+        return redirect(url_for('coordinator.coordinator_resource_requests'))
+
+    incident = Incident.query.get_or_404(incident_id)
+
+    resource_request = ResourceRequest(
+        incident_id=incident.id,
+        resource_type=resource_type,
+        quantity=quantity,
+        requested_by_id=user.id,
+        agency=agency,
+        status='OPEN',
+    )
+    db.session.add(resource_request)
+    try:
+        db.session.flush()
+        db.session.add(AuditEvent(
+            user_id=user.id,
+            entity_type='ResourceRequest',
+            entity_id=resource_request.id,
+            action='REQUESTED',
+            details=f'{agency} requested {quantity}x {resource_type} for incident #{incident.id}.',
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('coordinator.coordinator_resource_requests'))
+
+    flash(f'Resource request for {quantity}x {resource_type} submitted.', 'success')
+    return redirect(url_for('coordinator.coordinator_resource_requests'))

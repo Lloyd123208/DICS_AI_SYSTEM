@@ -1,7 +1,8 @@
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident, IncidentResponse, Task, Resource
-from blueprints.common import is_eoc_staff
+from models import AuditEvent, db, Incident, IncidentResponse, Resource, ResourceRequest, Alert, Report, User, Task, utcnow
+from blueprints.common import is_eoc_staff, current_user
+from services import permissions as permission_service
 
 eoc_bp = Blueprint('eoc', __name__)
 
@@ -148,7 +149,20 @@ def toggle_alert(incident_id):
 
     incident = Incident.query.get_or_404(incident_id)
     incident.alert = not incident.alert
+    verifier = User.query.filter_by(username=session['username']).first()
     try:
+        db.session.flush()
+        audit_event = AuditEvent(
+            user_id=verifier.id if verifier else None,
+            entity_type='Incident',
+            entity_id=incident.id,
+            action='ALERT_TOGGLED',
+            details=(
+                f"Alert toggled to {incident.alert} for incident {incident.id} "
+                f"by {verifier.username if verifier else 'unknown'}"
+            )
+        )
+        db.session.add(audit_event)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -171,6 +185,17 @@ def verify_incident(incident_id):
     incident.verified_by_id = verifier.id if verifier else None
 
     try:
+        db.session.flush()
+        audit_event = AuditEvent(
+            user_id=verifier.id if verifier else None,
+            entity_type='Incident',
+            entity_id=incident.id,
+            action='VERIFIED',
+            details=(
+                f"Incident {incident.id} verified by {verifier.username if verifier else 'unknown'}"
+            )
+        )
+        db.session.add(audit_event)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -214,6 +239,18 @@ def assign_commander(incident_id):
     )
     db.session.add(response)
     try:
+        db.session.flush()
+        audit_event = AuditEvent(
+            user_id=commander.id,
+            entity_type='IncidentResponse',
+            entity_id=response.id,
+            action='ASSIGNED',
+            details=(
+                f"Commander {commander.username} assigned to incident {incident.id} "
+                f"via dispatch by {session.get('username', 'unknown')}"
+            )
+        )
+        db.session.add(audit_event)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -246,6 +283,18 @@ def transfer_commander(response_id):
     old_commander_name = response.commander.username if response.commander else 'Unknown'
     response.commander_id = new_commander_id
     try:
+        db.session.flush()
+        audit_event = AuditEvent(
+            user_id=new_commander.id,
+            entity_type='IncidentResponse',
+            entity_id=response.id,
+            action='TRANSFERRED',
+            details=(
+                f"Response {response.id} transferred from {old_commander_name} "
+                f"to {new_commander.username} by {session.get('username', 'unknown')}"
+            )
+        )
+        db.session.add(audit_event)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -254,3 +303,238 @@ def transfer_commander(response_id):
 
     flash(f'Response #{response_id} transferred from {old_commander_name} to {new_commander.username}.', 'success')
     return redirect(url_for('admin.admin_responses'))
+
+
+@eoc_bp.route('/eoc/resource-requests')
+def eoc_resource_requests():
+    """Review requests submitted by agency coordinators and decide on them."""
+    if not permission_service.can_decide_resource_request(current_user()):
+        flash('You do not have permission to review resource requests.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    status_filter = request.args.get('status', 'OPEN').strip().upper()
+    query = ResourceRequest.query
+    if status_filter and status_filter != 'ALL':
+        query = query.filter(ResourceRequest.status == status_filter)
+    requests_ = query.order_by(ResourceRequest.created_at.desc()).all()
+
+    open_count = ResourceRequest.query.filter_by(status='OPEN').count()
+
+    return render_template('pages/eoc_resource_requests.html',
+        requests=requests_,
+        status_filter=status_filter,
+        open_count=open_count,
+    )
+
+
+@eoc_bp.route('/eoc/resource-requests/<int:request_id>/decide', methods=['POST'])
+def eoc_decide_resource_request(request_id):
+    user = current_user()
+    if not permission_service.can_decide_resource_request(user):
+        flash('You do not have permission to decide resource requests.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    resource_request = ResourceRequest.query.get_or_404(request_id)
+    decision = request.form.get('decision', '').strip().upper()
+    notes = request.form.get('notes', '').strip()
+
+    if decision not in ('APPROVED', 'DENIED', 'FULFILLED'):
+        flash('Invalid decision.', 'error')
+        return redirect(url_for('eoc.eoc_resource_requests'))
+
+    resource_request.status = decision
+    resource_request.decision_notes = notes or None
+    resource_request.decided_by_id = user.id
+    resource_request.decided_at = utcnow()
+
+    try:
+        db.session.flush()
+        db.session.add(AuditEvent(
+            user_id=user.id,
+            entity_type='ResourceRequest',
+            entity_id=resource_request.id,
+            action=f'DECISION_{decision}',
+            details=(
+                f'Request #{resource_request.id} ({resource_request.quantity}x '
+                f'{resource_request.resource_type} for {resource_request.agency}) '
+                f'marked {decision} by {user.username}.'
+            ),
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('eoc.eoc_resource_requests'))
+
+    flash(f'Request #{resource_request.id} marked {decision.title()}.', 'success')
+    return redirect(url_for('eoc.eoc_resource_requests'))
+
+
+@eoc_bp.route('/eoc/alerts')
+def official_alerts():
+    """Official, citizen-facing alerts -- separate from the automatic AI risk
+    flag on Incident.alert, which stays an internal signal on the
+    verification page. Viewable by every operational role; issuing/resolving
+    is gated to can_issue_alert (EOC/Commander/Admin)."""
+    if not permission_service.has_any_role('ADMIN', 'EOC', 'COMMANDER', 'COORDINATOR'):
+        flash('You do not have permission to view alerts.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    status_filter = request.args.get('status', 'ACTIVE').strip().upper()
+    query = Alert.query
+    if status_filter and status_filter != 'ALL':
+        query = query.filter(Alert.status == status_filter)
+    alerts = query.order_by(Alert.created_at.desc()).all()
+
+    recent_incidents = Incident.query.order_by(Incident.created_at.desc()).limit(30).all()
+
+    return render_template('pages/official_alerts.html',
+        alerts=alerts,
+        status_filter=status_filter,
+        recent_incidents=recent_incidents,
+        can_issue=permission_service.can_issue_alert(current_user()),
+    )
+
+
+@eoc_bp.route('/eoc/alerts/issue', methods=['POST'])
+def issue_alert():
+    """Publish an official, citizen-facing alert -- distinct from the
+    automatic AI risk flag (Incident.alert), which stays as an internal
+    operational signal, not a published advisory."""
+    user = current_user()
+    if not permission_service.can_issue_alert(user):
+        flash('You do not have permission to issue alerts.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    incident_id = request.form.get('incident_id', type=int)
+    title = request.form.get('title', '').strip()
+    message = request.form.get('message', '').strip()
+    severity = request.form.get('severity', 'MEDIUM').strip().upper()
+
+    if not title or not message:
+        flash('Alert title and message are required.', 'error')
+        return redirect(url_for('eoc.official_alerts'))
+
+    if severity not in ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'):
+        severity = 'MEDIUM'
+
+    alert = Alert(
+        incident_id=incident_id or None,
+        user_id=user.id,
+        title=title,
+        message=message,
+        severity=severity,
+        status='ACTIVE',
+    )
+    db.session.add(alert)
+    try:
+        db.session.flush()
+        db.session.add(AuditEvent(
+            user_id=user.id,
+            entity_type='Alert',
+            entity_id=alert.id,
+            action='ISSUED',
+            details=f'Alert "{title}" ({severity}) issued by {user.username}.',
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('eoc.official_alerts'))
+
+    flash(f'Alert "{title}" published.', 'success')
+    return redirect(url_for('eoc.official_alerts'))
+
+
+@eoc_bp.route('/eoc/alerts/<int:alert_id>/resolve', methods=['POST'])
+def resolve_alert(alert_id):
+    user = current_user()
+    if not permission_service.can_issue_alert(user):
+        flash('You do not have permission to resolve alerts.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    alert = Alert.query.get_or_404(alert_id)
+    alert.status = 'RESOLVED'
+    try:
+        db.session.flush()
+        db.session.add(AuditEvent(
+            user_id=user.id,
+            entity_type='Alert',
+            entity_id=alert.id,
+            action='RESOLVED',
+            details=f'Alert #{alert.id} ("{alert.title}") resolved by {user.username}.',
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('eoc.official_alerts'))
+
+    flash('Alert resolved.', 'success')
+    return redirect(url_for('eoc.official_alerts'))
+
+
+@eoc_bp.route('/eoc/incidents/<int:incident_id>')
+def eoc_incident_detail(incident_id):
+    """Single-incident detail view for EOC staff: full context plus the
+    ability to log a dated report/note against the incident directly --
+    useful during verification/triage, before any response is activated
+    (IncidentMessage, by contrast, requires an active IncidentResponse)."""
+    if not is_eoc_staff():
+        flash('EOC Staff access required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    incident = Incident.query.get_or_404(incident_id)
+    reports = Report.query.filter_by(incident_id=incident.id).order_by(Report.created_at.desc()).all()
+
+    return render_template('pages/eoc_incident_detail.html',
+        incident=incident,
+        reports=reports,
+        can_log_report=permission_service.can_log_incident_report(current_user()),
+    )
+
+
+@eoc_bp.route('/eoc/incidents/<int:incident_id>/log-report', methods=['POST'])
+def log_incident_report(incident_id):
+    user = current_user()
+    if not permission_service.can_log_incident_report(user):
+        flash('You do not have permission to log incident reports.', 'danger')
+        return redirect(url_for('eoc.eoc_incident_detail', incident_id=incident_id))
+
+    incident = Incident.query.get_or_404(incident_id)
+    title = request.form.get('title', '').strip()
+    content = request.form.get('content', '').strip()
+    report_type = request.form.get('report_type', 'GENERAL').strip().upper()
+
+    if not title or not content:
+        flash('Report title and content are required.', 'error')
+        return redirect(url_for('eoc.eoc_incident_detail', incident_id=incident_id))
+
+    if report_type not in ('GENERAL', 'TRIAGE', 'VERIFICATION', 'ESCALATION'):
+        report_type = 'GENERAL'
+
+    report = Report(
+        incident_id=incident.id,
+        user_id=user.id,
+        title=title,
+        content=content,
+        report_type=report_type,
+    )
+    db.session.add(report)
+    try:
+        db.session.flush()
+        db.session.add(AuditEvent(
+            user_id=user.id,
+            entity_type='Report',
+            entity_id=report.id,
+            action='LOGGED',
+            details=f'Report "{title}" ({report_type}) logged for incident #{incident.id} by {user.username}.',
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(str(e), 'error')
+        return redirect(url_for('eoc.eoc_incident_detail', incident_id=incident_id))
+
+    flash(f'Report "{title}" logged.', 'success')
+    return redirect(url_for('eoc.eoc_incident_detail', incident_id=incident_id))

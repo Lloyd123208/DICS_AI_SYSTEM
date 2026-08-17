@@ -4,9 +4,9 @@ import sqlite3
 from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for, send_file
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, Agency
+from models import AuditEvent, db, User, Incident, IncidentResponse, Task, Resource, Agency, utcnow
 from blueprints.common import is_admin, is_eoc_staff
 from services import permissions as permission_service
 
@@ -238,11 +238,46 @@ def admin_responses():
                            commanders=commanders)
 
 
-@admin_bp.route('/admin/backup')
+def verify_admin_password(user, password):
+    if user is None or not password:
+        return False
+
+    stored = user.password
+    if not stored:
+        return False
+
+    try:
+        if check_password_hash(stored, password):
+            return True
+    except (ValueError, TypeError):
+        pass
+
+    if stored == password:
+        user.password = generate_password_hash(password)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return False
+        return True
+
+    return False
+
+
+@admin_bp.route('/admin/backup', methods=['GET', 'POST'])
 def export_backup():
     """Export SQLite database as a downloadable backup file"""
     if not permission_service.is_admin():
         flash('Admin access required.', 'danger')
+        return redirect(url_for('admin.manage_users'))
+
+    if request.method == 'GET':
+        return render_template('pages/backup_confirm.html')
+
+    password = request.form.get('password', '').strip()
+    user = User.query.filter_by(username=session.get('username')).first()
+    if not user or not verify_admin_password(user, password):
+        flash('Password verification failed. Backup export denied.', 'error')
         return redirect(url_for('admin.manage_users'))
 
     try:
@@ -256,6 +291,16 @@ def export_backup():
         src.backup(dst)
         dst.close()
         src.close()
+
+        audit_event = AuditEvent(
+            user_id=user.id,
+            entity_type='Database',
+            entity_id=None,
+            action='BACKUP_EXPORTED',
+            details=f'Admin backup exported by {user.username} at {utcnow().isoformat()}.'
+        )
+        db.session.add(audit_event)
+        db.session.commit()
 
         backup_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'instance')
         backup_files = sorted(glob.glob(os.path.join(backup_dir, 'dics_ai_backup_*.db')))

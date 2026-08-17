@@ -1,6 +1,8 @@
+import json
+
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident
+from models import db, User, Incident, AIRecommendation, AuditEvent
 from services.realtime_data import get_earthquake_data
 from ai.decision_support import predict_hazard
 from services import permissions as permission_service
@@ -54,6 +56,33 @@ def ai_prediction():
             )
             db.session.add(incident)
             try:
+                if prediction:
+                    ai_recommendation = AIRecommendation(
+                        incident=incident,
+                        user_id=user.id,
+                        provider=prediction.get('provider'),
+                        model=prediction.get('model'),
+                        recommendation_type='hazard_prediction',
+                        summary=prediction.get('message', '').strip() or 'AI hazard prediction generated.',
+                        confidence_score=prediction.get('confidence'),
+                        recommended_agencies=json.dumps(prediction.get('recommended_agencies', [])),
+                        recommended_resources=json.dumps(prediction.get('recommended_resources', [])),
+                        primary_factors=json.dumps(prediction.get('primary_factors', [])),
+                    )
+                    db.session.add(ai_recommendation)
+                    db.session.flush()
+                    audit_event = AuditEvent(
+                        user_id=user.id,
+                        entity_type='AIRecommendation',
+                        entity_id=ai_recommendation.id,
+                        action='CREATED',
+                        details=(
+                            f"AI prediction created from provider={prediction.get('provider')} "
+                            f"model={prediction.get('model')} score={prediction.get('score')} "
+                            f"for incident_id={incident.id}"
+                        )
+                    )
+                    db.session.add(audit_event)
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()

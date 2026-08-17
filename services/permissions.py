@@ -127,3 +127,29 @@ def can_manage_users(user) -> bool:
 
 def can_view_analytics(user) -> bool:
     return is_admin() or is_coordinator() or is_commander() or is_eoc()
+
+
+def can_manage_facilities(user) -> bool:
+    return is_admin() or is_eoc()
+
+
+def can_manage_evacuation_centers(user) -> bool:
+    return is_admin() or is_eoc() or is_coordinator()
+
+
+def can_request_resources(user) -> bool:
+    """Submitting an agency resource request is a coordinator action -- it's
+    asking EOC/Commander for something this coordinator's own agency
+    doesn't have on hand. Admin has no agency of its own to request on
+    behalf of, so it's intentionally excluded (see is_agency_coordinator()
+    in blueprints/common.py for the same boundary on the rest of the
+    coordinator dashboard)."""
+    return is_coordinator()
+
+
+def can_decide_resource_request(user) -> bool:
+    return is_admin() or is_eoc() or is_commander()
+
+
+def can_log_incident_report(user) -> bool:
+    return is_admin() or is_eoc()

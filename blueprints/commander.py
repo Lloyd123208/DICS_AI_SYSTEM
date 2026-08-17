@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 
-from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage, PostIncidentReport, Agency
+from models import db, User, Incident, IncidentResponse, Task, Resource, IncidentMessage, PostIncidentReport, Agency, utcnow
 from blueprints.common import is_incident_commander
 
 commander_bp = Blueprint('commander', __name__)
@@ -363,8 +363,8 @@ def incident_response_close_page(response_id):
         )
 
         response.status = 'CLOSED'
-        response.closed_at = datetime.utcnow()
-        response.resolved_at = datetime.utcnow()
+        response.closed_at = utcnow()
+        response.resolved_at = utcnow()
         response.situation_summary = f"Response Closed. Total Casualties: {casualties}, Total Evacuated: {evacuated}"
         if response.incident is not None:
             response.incident.alert = False
@@ -546,11 +546,13 @@ def update_task(response_id, task_id):
     if response.commander_id != commander.id:
         abort(403)
     task = Task.query.get_or_404(task_id)
+    if task.incident_response_id != response.id:
+        abort(404)
     status = request.form.get('status')
 
     task.status = status
     if status == 'COMPLETED':
-        task.completed_at = datetime.utcnow()
+        task.completed_at = utcnow()
 
     try:
         db.session.commit()
@@ -573,6 +575,8 @@ def update_resource(response_id, resource_id):
     if response.commander_id != commander.id:
         abort(403)
     resource = Resource.query.get_or_404(resource_id)
+    if resource.incident_response_id != response.id:
+        abort(404)
     status = request.form.get('status')
     location = request.form.get('location')
 
@@ -580,7 +584,7 @@ def update_resource(response_id, resource_id):
     if location:
         resource.location = location
     if status == 'DEPLOYED':
-        resource.deployed_at = datetime.utcnow()
+        resource.deployed_at = utcnow()
 
     try:
         db.session.commit()

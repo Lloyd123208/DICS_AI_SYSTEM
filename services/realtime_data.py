@@ -6,6 +6,8 @@ import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from models import utcnow
+
 # OpenWeatherMap API key must be provided via environment variable.
 # Example: set OPENWEATHER_API_KEY=your_real_key before running the app.
 # This module also supports a local .env file in the project root.
@@ -13,7 +15,9 @@ from pathlib import Path
 # Simple in-memory cache for API responses (reduces duplicate calls)
 _cache = {
     'weather': {},
-    'earthquakes': {'data': None, 'timestamp': None}
+    'earthquakes': {'data': None, 'timestamp': None},
+    'flood_events': {'data': None, 'timestamp': None},
+    'volcano_events': {'data': None, 'timestamp': None},
 }
 _cache_duration = 300  # 5 minutes
 CALABARZON_CITIES = {
@@ -116,7 +120,7 @@ def get_weather_data(city="Lipa"):
     # Check cache first
     cached = _cache['weather'].get(canonical_city)
     if cached and cached['data'] is not None and cached['timestamp'] is not None:
-        if datetime.utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
+        if utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
             return cached['data']
 
     api_key = _get_openweather_api_key()
@@ -145,10 +149,10 @@ def get_weather_data(city="Lipa"):
         'wind_speed': data.get('wind', {}).get('speed'),
         'rainfall': rainfall,
         'weather': data.get('weather', [{}])[0].get('description'),
-        'fetched_at': datetime.utcnow().isoformat() + 'Z'
+        'fetched_at': utcnow().isoformat() + 'Z'
     }
     # Cache the result by city
-    _cache['weather'][canonical_city] = {'data': result, 'timestamp': datetime.utcnow()}
+    _cache['weather'][canonical_city] = {'data': result, 'timestamp': utcnow()}
     return result
 
 
@@ -159,15 +163,25 @@ def get_earthquake_data():
     # Check cache first
     cached = _cache.get('earthquakes')
     if cached and cached['data'] is not None and cached['timestamp'] is not None:
-        if datetime.utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
+        if utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
             return cached['data']
 
+    # starttime bounds the feed to genuinely recent activity. Without this,
+    # USGS's "10 most recent events in this bounding box" can mean the same
+    # single earthquake from weeks ago, indefinitely, if CALABARZON simply
+    # hasn't had 10 newer quakes since -- which is common for this region.
+    # Incident-level de-duplication in scheduler.py also keys off each
+    # quake's own USGS event id (not just this time bound), so the two
+    # protections are independent: this keeps the "recent activity" feed
+    # honest, that keeps duplicate Incident rows from ever being created.
+    start_date = (utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
     url = (
         "https://earthquake.usgs.gov/fdsnws/event/1/query"
         f"?format=geojson&minlatitude={CALABARZON_BBOX['minlatitude']}"
         f"&maxlatitude={CALABARZON_BBOX['maxlatitude']}"
         f"&minlongitude={CALABARZON_BBOX['minlongitude']}"
         f"&maxlongitude={CALABARZON_BBOX['maxlongitude']}"
+        f"&starttime={start_date}"
         "&orderby=time&limit=10"
     )
     data = _fetch_json(url)
@@ -178,10 +192,122 @@ def get_earthquake_data():
     for feat in data.get('features', []):
         prop = feat.get('properties', {})
         earthquakes.append({
+            'event_id': feat.get('id'),
             'magnitude': prop.get('mag'),
             'place': prop.get('place'),
             'time': prop.get('time')
         })
     # Cache the result
-    _cache['earthquakes'] = {'data': earthquakes, 'timestamp': datetime.utcnow()}
+    _cache['earthquakes'] = {'data': earthquakes, 'timestamp': utcnow()}
     return earthquakes
+
+
+def get_flood_events():
+    """Fetch recent flood events affecting the Philippines from GDACS
+    (Global Disaster Alert and Coordination System -- UN OCHA / EC Joint
+    Research Centre, https://www.gdacs.org). No API key required.
+
+    GDACS is a global feed covering all hazard types; EVENTS4APP returns the
+    ~100 most recent events worldwide from the last few days, so we filter
+    client-side for eventtype == 'FL' (flood) and a country field containing
+    "Philippines" -- GDACS does not expose a server-side country filter on
+    this endpoint. Field names (eventtype, alertlevel, severitydata, etc.)
+    follow GDACS's documented GeoJSON schema; see
+    https://www.gdacs.org/Documents/2025/GDACS_API_quickstart_v2.pdf.
+    Uses in-memory cache to reduce API calls.
+    """
+    cached = _cache.get('flood_events')
+    if cached and cached['data'] is not None and cached['timestamp'] is not None:
+        if utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
+            return cached['data']
+
+    url = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/EVENTS4APP"
+    data = _fetch_json(url)
+    if not data:
+        return []
+
+    floods = []
+    for feat in data.get('features', []) or []:
+        prop = feat.get('properties', {}) or {}
+        if (prop.get('eventtype') or '').strip().upper() != 'FL':
+            continue
+        country = (prop.get('country') or '').strip()
+        if 'philippines' not in country.lower():
+            continue
+
+        lat = lon = None
+        geometry = feat.get('geometry') or {}
+        if geometry.get('type') == 'Point':
+            coords = geometry.get('coordinates') or []
+            if len(coords) >= 2:
+                lon, lat = coords[0], coords[1]
+
+        severity = prop.get('severitydata') or {}
+        floods.append({
+            'event_id': prop.get('eventid'),
+            'name': prop.get('eventname'),
+            'country': country,
+            'alert_level': (prop.get('alertlevel') or '').strip(),
+            'severity_text': severity.get('severitytext') or severity.get('severity'),
+            'from_date': prop.get('fromdate'),
+            'to_date': prop.get('todate'),
+            'is_current': prop.get('iscurrent'),
+            'lat': lat,
+            'lon': lon,
+            'source': 'GDACS',
+        })
+
+    _cache['flood_events'] = {'data': floods, 'timestamp': utcnow()}
+    return floods
+
+
+def get_volcano_events():
+    """Fetch open volcanic events near Calabarzon from NASA EONET (Earth
+    Observatory Natural Event Tracker, https://eonet.gsfc.nasa.gov). No API
+    key required.
+
+    EONET is a global feed with no country filter, so events are matched
+    against CALABARZON_BBOX using each event's most recent geometry point
+    (e.g. Taal Volcano sits inside this box; volcanoes further from
+    Calabarzon, such as Mayon or Kanlaon, will not match -- widen
+    CALABARZON_BBOX if broader Philippine coverage is wanted later).
+    Uses in-memory cache to reduce API calls.
+    """
+    cached = _cache.get('volcano_events')
+    if cached and cached['data'] is not None and cached['timestamp'] is not None:
+        if utcnow() - cached['timestamp'] < timedelta(seconds=_cache_duration):
+            return cached['data']
+
+    url = "https://eonet.gsfc.nasa.gov/api/v3/events?category=volcanoes&status=open"
+    data = _fetch_json(url)
+    if not data:
+        return []
+
+    volcanoes = []
+    for event in data.get('events', []) or []:
+        geometries = event.get('geometry') or []
+        if not geometries:
+            continue
+        latest = geometries[-1] or {}
+        coords = latest.get('coordinates') or []
+        if len(coords) < 2:
+            continue
+        lon, lat = coords[0], coords[1]
+        if lat is None or lon is None:
+            continue
+        if not (CALABARZON_BBOX['minlatitude'] <= lat <= CALABARZON_BBOX['maxlatitude']
+                and CALABARZON_BBOX['minlongitude'] <= lon <= CALABARZON_BBOX['maxlongitude']):
+            continue
+
+        volcanoes.append({
+            'event_id': event.get('id'),
+            'title': event.get('title'),
+            'date': latest.get('date'),
+            'lat': lat,
+            'lon': lon,
+            'link': event.get('link'),
+            'source': 'NASA EONET',
+        })
+
+    _cache['volcano_events'] = {'data': volcanoes, 'timestamp': utcnow()}
+    return volcanoes
